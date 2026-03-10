@@ -67,10 +67,11 @@ ${research.source}
 async function main() {
 
     const sources = await Promise.all([
-        scanAirdrops(),
-        scanCryptoRank(),
-        scanDefiLlama()
-    ]);
+    scanAirdrops().catch(() => []),
+    scanCryptoRank().catch(() => []),
+    scanDefiLlama().catch(() => []),
+    scanGithub().catch(() => [])
+]);
 
     const projects = sources.flat();
 
