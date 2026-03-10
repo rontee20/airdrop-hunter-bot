@@ -1,7 +1,6 @@
 const scanAirdrops = require("./sources/airdrops");
 const scanCryptoRank = require("./sources/cryptorank");
 const scanDefiLlama = require("./sources/defillama");
-const scanGithub = require("./sources/github");
 const scanGalxe = require("./sources/galxe");
 const scanZealy = require("./sources/zealy");
 const scanTwitter = require("./sources/twitter");
@@ -158,7 +157,6 @@ async function main() {
         scanAirdrops().catch(() => []),
         scanCryptoRank().catch(() => []),
         scanDefiLlama().catch(() => []),
-        scanGithub().catch(() => []),
         scanGalxe().catch(() => []),
         scanZealy().catch(() => []),
         scanTwitter().catch(() => [])
