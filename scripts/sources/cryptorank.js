@@ -7,19 +7,16 @@ async function scanCryptoRank() {
 
         const res = await axios.get("https://cryptorank.io/airdrops");
 
-        const html = res.data;
-
-        const cheerio = require("cheerio");
-        const $ = cheerio.load(html);
+        const $ = cheerio.load(res.data);
 
         const projects = [];
 
-        $("a").each((i, el) => {
+        $("a[href*='/airdrops/']").each((i, el) => {
 
             const name = $(el).text().trim();
             const link = $(el).attr("href");
 
-            if (name.length > 3 && link && link.includes("/airdrops/")) {
+            if (name && name.length > 3) {
 
                 projects.push({
                     name,
