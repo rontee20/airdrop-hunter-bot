@@ -3,11 +3,12 @@ const https = require("https");
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 
-const message = "🚀 Airdrop hunter bot is working!";
+console.log("Token:", BOT_TOKEN);
+console.log("Chat:", CHAT_ID);
 
 const data = JSON.stringify({
   chat_id: CHAT_ID,
-  text: message
+  text: "🚀 TEST MESSAGE FROM GITHUB BOT"
 });
 
 const options = {
@@ -21,7 +22,7 @@ const options = {
 };
 
 const req = https.request(options, res => {
-  console.log("Message sent");
+  console.log("STATUS:", res.statusCode);
 });
 
 req.write(data);
