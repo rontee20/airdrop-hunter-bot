@@ -4,23 +4,29 @@ async function tokenCheck(name) {
 
     try {
 
-        const url = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(name)}`;
+        // CoinGecko check
+        const gecko = await axios.get(
+            `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(name)}`
+        );
 
-        const res = await axios.get(url, { timeout: 10000 });
-
-        if (!res.data || !res.data.coins) return false;
-
-        if (res.data.coins.length > 0) {
-
+        if (gecko.data.coins && gecko.data.coins.length > 0) {
             return true;
+        }
 
+        // CoinMarketCap check
+        const cmc = await axios.get(
+            `https://api.coincap.io/v2/assets?search=${encodeURIComponent(name)}`
+        );
+
+        if (cmc.data.data && cmc.data.data.length > 0) {
+            return true;
         }
 
         return false;
 
     } catch (err) {
 
-        console.log("Token check error:", name);
+        console.log("Token check skipped:", name);
         return false;
 
     }
