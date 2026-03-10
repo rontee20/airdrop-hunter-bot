@@ -157,7 +157,10 @@ async function main() {
         scanAirdrops().catch(() => []),
         scanCryptoRank().catch(() => []),
         scanDefiLlama().catch(() => []),
-        scanGithub().catch(() => [])
+        scanGithub().catch(() => []),
+        scanGalxe().catch(() => []),
+        scanZealy().catch(() => []),
+        scanTwitter().catch(() => [])
     ]);
 
     const projects = sources.flat();
