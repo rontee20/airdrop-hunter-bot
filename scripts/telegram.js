@@ -1,12 +1,12 @@
 const axios = require("axios");
 
-const BOT_TOKEN = process.env.BOT_TOKEN;
-const CHAT_ID = process.env.CHAT_ID;
-
 async function sendTelegram(message) {
 
+    const BOT_TOKEN = process.env.BOT_TOKEN;
+    const CHAT_ID = process.env.CHAT_ID;
+
     if (!BOT_TOKEN || !CHAT_ID) {
-        console.log("Telegram config missing");
+        console.log("❌ Missing BOT_TOKEN or CHAT_ID");
         return;
     }
 
@@ -19,11 +19,11 @@ async function sendTelegram(message) {
             text: message
         });
 
-        console.log("Telegram sent:", res.data);
+        console.log("✅ Telegram sent:", res.data.result.message_id);
 
     } catch (err) {
 
-        console.log("Telegram error:", err.response?.data || err.message);
+        console.log("❌ Telegram error:", err.response?.data || err.message);
 
     }
 }
