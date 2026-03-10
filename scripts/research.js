@@ -4,12 +4,11 @@ async function researchProject(name, link) {
 
     try {
 
-        // Check if token exists on CoinGecko
         const search = await axios.get(
             `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(name)}`
         );
 
-        // If token already listed → skip
+        // if token exists -> skip
         if (search.data.coins.length > 0) {
 
             console.log("Token already listed:", name);
@@ -17,28 +16,27 @@ async function researchProject(name, link) {
 
         }
 
-        // Simple alpha message
         const message = `
-💎 NEW EARLY ALPHA
+<b>💎 NEW EARLY ALPHA</b>
 
 Project: ${name}
 
 Status: Pre-Token Stage
 Token: Not Listed Yet
 
-Why it matters:
-Early users often qualify for retroactive rewards when tokens launch.
+Why this matters:
+Early users often receive retroactive airdrops if a token launches later.
 
-Project Link:
+<b>Project Link</b>
 ${link}
 
-Possible actions:
-• Visit the project site
-• Follow official X
-• Join community
-• Complete early quests if available
+<b>Possible Actions</b>
+• Visit website  
+• Follow official X  
+• Join community  
+• Complete early tasks  
 
-More research coming if ecosystem activity increases.
+<i>More research coming if activity increases.</i>
 `;
 
         return message;
