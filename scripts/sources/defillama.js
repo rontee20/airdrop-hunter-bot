@@ -8,11 +8,14 @@ async function scanDefiLlama() {
             "https://api.llama.fi/protocols"
         );
 
-        const projects = res.data.slice(0,20).map(p => ({
-            name: p.name,
-            link: p.url,
-            source: "DeFiLlama"
-        }));
+        const projects = res.data
+            .filter(p => p.tvl < 50000000) // early stage projects
+            .slice(0, 20)
+            .map(p => ({
+                name: p.name,
+                link: p.url,
+                source: "DeFiLlama"
+            }));
 
         return projects;
 
