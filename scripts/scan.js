@@ -3,6 +3,9 @@ const https = require("https");
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 
+console.log("BOT_TOKEN:", BOT_TOKEN ? "loaded" : "missing");
+console.log("CHAT_ID:", CHAT_ID);
+
 function sendTelegram(text) {
   const data = JSON.stringify({
     chat_id: CHAT_ID,
@@ -19,7 +22,18 @@ function sendTelegram(text) {
     }
   };
 
-  const req = https.request(options);
+  const req = https.request(options, res => {
+    console.log("Telegram status:", res.statusCode);
+
+    let response = "";
+    res.on("data", chunk => response += chunk);
+    res.on("end", () => console.log("Telegram response:", response));
+  });
+
+  req.on("error", error => {
+    console.error("Telegram error:", error);
+  });
+
   req.write(data);
   req.end();
 }
