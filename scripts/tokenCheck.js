@@ -4,29 +4,21 @@ async function tokenCheck(name) {
 
     try {
 
-        // CoinGecko check
-        const gecko = await axios.get(
-            `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(name)}`
-        );
+        const url = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(name)}`;
 
-        if (gecko.data.coins.length > 0) {
-            return true;
-        }
+        const res = await axios.get(url);
 
-        // CoinMarketCap check
-        const cmc = await axios.get(
-            `https://api.coincap.io/v2/assets?search=${encodeURIComponent(name)}`
-        );
+        if (res.data.coins && res.data.coins.length > 0) {
 
-        if (cmc.data.data && cmc.data.data.length > 0) {
-            return true;
+            return true; // token exists
+
         }
 
         return false;
 
     } catch (err) {
 
-        console.log("Token check failed:", name);
+        console.log("Token check error:", name);
         return false;
 
     }
