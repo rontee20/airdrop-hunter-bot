@@ -11,7 +11,7 @@ async function scanAirdrops() {
 
         const projects = [];
 
-        $(".airdrop-item").each((i, el) => {
+        $("article").each((i, el) => {
 
             const name = $(el).find("h3").text().trim();
             const link = $(el).find("a").attr("href");
@@ -34,7 +34,7 @@ async function scanAirdrops() {
 
     } catch (err) {
 
-        console.log("Airdrops scan error");
+        console.log("Airdrops scan error:", err.message);
         return [];
 
     }
