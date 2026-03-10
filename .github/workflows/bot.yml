@@ -1,4 +1,15 @@
-steps:
+name: Airdrop Hunter
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *" # Runs every hour
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    steps:
       - name: Checkout repo
         uses: actions/checkout@v3
 
@@ -8,7 +19,7 @@ steps:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install axios rss-parser cheerio # <--- This is the fix
+        run: npm install axios rss-parser cheerio
 
       - name: Run bot
         run: node scripts/scan.js
