@@ -1,4 +1,7 @@
 const scanAirdrops = require("./sources/airdrops");
+const scanCryptoRank = require("./sources/cryptorank");
+const scanDefiLlama = require("./sources/defillama");
+
 const researchProject = require("./research");
 const tokenCheck = require("./tokenCheck");
 const scoreProject = require("./scoring");
@@ -9,81 +12,46 @@ const fs = require("fs");
 let posted = [];
 
 try {
-
     posted = JSON.parse(fs.readFileSync("data/projects.json"));
-
 } catch {
-
     posted = [];
-
 }
 
 async function processProject(project) {
 
-    console.log("Checking project:", project.name);
+    console.log("Checking:", project.name);
 
-    // skip duplicates
-    if (posted.includes(project.name)) {
+    if (posted.includes(project.name)) return;
 
-        console.log("Already posted:", project.name);
-        return;
-
-    }
-
-    // research project
     const research = await researchProject(project);
 
-    if (!research) {
+    if (!research) return;
 
-        console.log("Research failed:", project.name);
-        return;
-
-    }
-
-    // check token listing
     const listed = await tokenCheck(project.name);
 
-    if (listed) {
+    if (listed) return;
 
-        console.log("Token already listed:", project.name);
-        return;
-
-    }
-
-    // scoring filter
     const score = scoreProject(research);
 
-    if (score < 6) {
-
-        console.log("Low score project:", project.name);
-        return;
-
-    }
+    if (score < 6) return;
 
     const message = `
-💎 <b>NEW ALPHA PROJECT</b>
+💎 <b>NEW ALPHA</b>
 
 Project: ${research.name}
 
-Website:
+Website
 ${research.website}
 
-Twitter:
-${research.twitter || "Not found"}
+Twitter
+${research.twitter || "N/A"}
 
-Discord:
-${research.discord || "Not found"}
-
-Github:
-${research.github || "Not found"}
-
-Source:
+Source
 ${research.source}
 `;
 
     await sendTelegram(message);
 
-    // save project
     posted.push(project.name);
 
     fs.writeFileSync(
@@ -95,12 +63,18 @@ ${research.source}
 
 async function main() {
 
-    const projects = await scanAirdrops();
+    const sources = await Promise.all([
+        scanAirdrops(),
+        scanCryptoRank(),
+        scanDefiLlama()
+    ]);
 
-    for (const p of projects.slice(0, 10)) {
+    const projects = sources.flat();
 
+    console.log("Projects detected:", projects.length);
+
+    for (const p of projects.slice(0,20)) {
         await processProject(p);
-
     }
 
 }
