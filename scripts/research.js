@@ -1,63 +1,41 @@
 const axios = require("axios");
-const cheerio = require("cheerio");
 
-async function researchProject(name, link) {
+async function researchProject(name) {
 
     try {
 
-        const res = await axios.get(link);
-        const $ = cheerio.load(res.data);
+        // search project on coingecko
+        const search = await axios.get(
+            `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(name)}`
+        );
 
-        let twitter = null;
-        let website = null;
+        if (!search.data.coins.length) {
+            return null;
+        }
 
-        $("a").each((i, el) => {
+        const coinId = search.data.coins[0].id;
 
-            const href = $(el).attr("href");
-            if (!href) return;
+        // get detailed project data
+        const res = await axios.get(
+            `https://api.coingecko.com/api/v3/coins/${coinId}`
+        );
 
-            // -------- FILTER BAD LINKS --------
-            if (
-                href.includes("coingecko") ||
-                href.includes("coinmarketcap") ||
-                href.includes("youtube") ||
-                href.includes("t.me") ||
-                href.includes("discord.gg") ||
-                href.includes("reddit")
-            ) {
-                return;
-            }
+        const coin = res.data;
 
-            // -------- FIND PROJECT TWITTER --------
-            if (
-                !twitter &&
-                (href.includes("twitter.com/") || href.includes("x.com/"))
-            ) {
-                twitter = href;
-            }
+        const website = coin.links.homepage[0];
+        const twitter = coin.links.twitter_screen_name
+            ? `https://x.com/${coin.links.twitter_screen_name}`
+            : null;
 
-            // -------- FIND PROJECT WEBSITE --------
-            if (
-                !website &&
-                href.startsWith("http") &&
-                !href.includes("twitter") &&
-                !href.includes("x.com")
-            ) {
-                website = href;
-            }
-
-        });
-
-        // if important info missing → skip project
-        if (!twitter || !website) {
+        if (!website || !twitter) {
             return null;
         }
 
         return {
-            name,
-            link,
-            twitter,
-            website
+            name: coin.name,
+            website: website,
+            twitter: twitter,
+            gecko: `https://www.coingecko.com/en/coins/${coinId}`
         };
 
     } catch (err) {
