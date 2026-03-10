@@ -10,10 +10,14 @@ async function runMasterScanner() {
 
     console.log("🛰️ Global Alpha Scan Started...");
 
-    // TEST MESSAGE
-    await sendTelegram("🚀 Airdrop Hunter Bot Started");
+    // TEST MESSAGE (to confirm bot works)
+    await sendTelegram(buildPost(
+        "Pudgy Penguins",
+        "https://www.coingecko.com/en/coins/pudgy-penguins",
+        "Standard Project"
+    ));
 
-    // 1️⃣ Trackers
+    // Scan Trackers
     scanTrackers(async (projects) => {
 
         if (!Array.isArray(projects)) return;
@@ -22,7 +26,11 @@ async function runMasterScanner() {
 
             const score = checkFunding(p.name);
 
-            const post = buildPost(p.name, p.link, score);
+            const post = buildPost(
+                p.name,
+                p.link,
+                score
+            );
 
             await sendTelegram(post);
 
@@ -30,7 +38,7 @@ async function runMasterScanner() {
 
     });
 
-    // 2️⃣ News
+    // Scan News
     scanNews(async (newsItems) => {
 
         if (!Array.isArray(newsItems)) return;
@@ -42,7 +50,7 @@ async function runMasterScanner() {
                 const post = buildPost(
                     item.name,
                     item.link,
-                    "🔥 Breaking News"
+                    "Breaking News"
                 );
 
                 await sendTelegram(post);
@@ -53,7 +61,7 @@ async function runMasterScanner() {
 
     });
 
-    // 3️⃣ Galxe
+    // Scan Galxe
     scanGalxe(async (campaigns) => {
 
         if (!Array.isArray(campaigns)) return;
@@ -63,7 +71,7 @@ async function runMasterScanner() {
             const post = buildPost(
                 c.name,
                 c.link,
-                "🎯 Galxe Campaign"
+                "Galxe Campaign"
             );
 
             await sendTelegram(post);
@@ -72,7 +80,7 @@ async function runMasterScanner() {
 
     });
 
-    // 4️⃣ Zealy
+    // Scan Zealy
     scanZealy(async (communities) => {
 
         if (!Array.isArray(communities)) return;
@@ -82,7 +90,7 @@ async function runMasterScanner() {
             const post = buildPost(
                 z.name,
                 z.link,
-                "🏆 Zealy Campaign"
+                "Zealy Campaign"
             );
 
             await sendTelegram(post);
