@@ -1,17 +1,2 @@
-steps:
-      - name: Checkout repo
-        uses: actions/checkout@v3
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '20'
-
-      - name: Install dependencies
-        run: npm install axios rss-parser cheerio  # <--- THIS IS THE MISSING PIECE
-
-      - name: Run bot
-        run: node scripts/scan.js
-        env:
-          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
-          CHAT_ID: ${{ secrets.CHAT_ID }}
+- name: Install dependencies
+        run: npm install  # This automatically reads your package.json
