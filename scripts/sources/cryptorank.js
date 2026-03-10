@@ -5,7 +5,12 @@ async function scanCryptoRank() {
 
     try {
 
-        const res = await axios.get("https://cryptorank.io/airdrops");
+        const res = await axios.get("https://cryptorank.io/airdrops", {
+            timeout: 10000,
+            headers: {
+                "User-Agent": "Mozilla/5.0"
+            }
+        });
 
         const $ = cheerio.load(res.data);
 
@@ -28,11 +33,14 @@ async function scanCryptoRank() {
 
         });
 
+        console.log("CryptoRank detected:", projects.length);
+
         return projects;
 
     } catch (err) {
 
-        console.log("CryptoRank scan error:", err.message);
+        console.log("CryptoRank failed — skipping");
+
         return [];
 
     }
