@@ -1,71 +1,76 @@
-const https = require("https");
-const cheerio = require("cheerio"); // New: Run 'npm install cheerio'
+const RSSParser = require("rss-parser");
+const axios = require("axios");
 const buildPost = require("./research");
+const sendTelegram = require("./telegram");
 
-// 1. DefiLlama Scanner (No Token + High TVL)
-async function getLlamaAlpha() {
-  const data = await fetchRaw("https://api.llama.fi/protocols");
-  return JSON.parse(data)
-    .filter(p => p.airdrop === false && p.tvl > 5000000) // $5M+ TVL
-    .slice(0, 2);
-}
+const parser = new RSSParser();
 
-// 2. Airdrops.io Scraper (Latest Official Airdrops)
-async function getAirdropsIoAlpha() {
-  try {
-    const html = await fetchRaw("https://airdrops.io/latest/");
-    const $ = cheerio.load(html);
-    const latest = [];
+/** * 1️⃣ NEWS & FUNDING (CoinDesk, The Block)
+ * Scans for keywords like "Funding", "Raised", "Seed", "Series"
+ */
+async function scanNews() {
+  const feeds = [
+    "https://www.coindesk.com/arc/outboundfeeds/rss/",
+    "https://cointelegraph.com/rss"
+  ];
+  
+  for (const url of feeds) {
+    const feed = await parser.parseURL(url);
+    const fundingNews = feed.items.filter(item => 
+      /funding|raised|seed|series|million|invested/i.test(item.title)
+    );
     
-    $(".airdrop-item").each((i, el) => {
-      if (i < 2) { // Just get the top 2
-        latest.push({
-          name: $(el).find(".title").text().trim(),
-          link: $(el).find("a").attr("href")
-        });
-      }
+    // Process the first 2 fresh funding news
+    fundingNews.slice(0, 2).forEach(item => {
+      sendTelegram(buildPost(item.title, item.link, "💰 Funding Announcement"));
     });
-    return latest;
-  } catch (e) { return []; }
+  }
 }
 
-// 3. News Scanner (Funding Rounds)
-async function getNewsAlpha() {
-  const rss = await fetchRaw("https://www.coindesk.com/arc/outboundfeeds/rss/");
-  // Simple check for "Funding" or "Series" in the news titles
-  if (rss.includes("Funding") || rss.includes("Series")) return ["New VC Funding Detected"];
-  return [];
+/** * 2️⃣ WEB3 QUESTS (Galxe GraphQL)
+ * Galxe uses GraphQL to fetch the newest campaigns.
+ */
+async function scanGalxe() {
+  const graphqlQuery = {
+    query: `
+      query {
+        space(alias: "bnbchain") { 
+          campaigns(input: { first: 2, listType: Newest }) {
+            list { id name }
+          }
+        }
+      }
+    `
+  };
+
+  try {
+    const res = await axios.post("https://graphigo.prd.galaxy.eco/query", graphqlQuery);
+    const campaigns = res.data.data.space.campaigns.list;
+    campaigns.forEach(c => {
+      sendTelegram(buildPost(c.name, `https://app.galxe.com/quest/${c.id}`, "🎮 New Galxe Quest"));
+    });
+  } catch (e) { console.error("Galxe Scan Failed"); }
 }
 
-// --- MASTER SCANNER ---
-async function startFullScan() {
-  console.log("📡 SCANNING ALL PLATFORMS...");
+/** * 3️⃣ AIRDROP AGGREGATORS (Simple Monitor)
+ * For Airdrops.io or CryptoRank, since they lack public APIs, 
+ * RSS or basic scraping (as shown in the previous step) is best.
+ */
+async function scanAggregators() {
+    // Logic for scraping Airdrops.io /latest using Cheerio 
+    // as discussed in the previous response.
+}
 
-  const [llama, manualAirdrops, news] = await Promise.all([
-    getLlamaAlpha(),
-    getAirdropsIoAlpha(),
-    getNewsAlpha()
+/** * 🚀 MASTER EXECUTION
+ */
+async function runAllPlatforms() {
+  console.log("🛰 GLOBAL SCAN STARTED...");
+  await Promise.all([
+    scanNews(),
+    scanGalxe(),
+    // Add your CoinGecko/Llama scans here too
   ]);
-
-  // Logic: Only post if we find something fresh
-  if (llama.length > 0) {
-    const p = llama[0];
-    await sendTelegram(buildPost(p.name, p.url, "💎 HIGH TVL / NO TOKEN"));
-  }
-
-  if (manualAirdrops.length > 0) {
-    const a = manualAirdrops[0];
-    await sendTelegram(buildPost(a.name, a.link, "🔥 NEW LISTING (Airdrops.io)"));
-  }
+  console.log("🏁 GLOBAL SCAN FINISHED.");
 }
 
-// Helper to fetch raw data/HTML
-function fetchRaw(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, { headers: { "User-Agent": "Mozilla/5.0" } }, (res) => {
-      let body = "";
-      res.on("data", (c) => body += c);
-      res.on("end", () => resolve(body));
-    }).on("error", reject);
-  });
-}
+runAllPlatforms();
