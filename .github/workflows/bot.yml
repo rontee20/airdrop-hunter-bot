@@ -3,7 +3,7 @@ name: Airdrop Hunter
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *" # Runs every hour
+    - cron: "0/15 * * * *"
 
 jobs:
   run-bot:
@@ -13,13 +13,13 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Setup Node.js
+      - name: Setup Node
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
+          node-version: 20
 
       - name: Install dependencies
-        run: npm install axios rss-parser cheerio
+        run: npm install
 
       - name: Run bot
         run: node scripts/scan.js
