@@ -1,29 +1,34 @@
 function buildResearchPost(name, link) {
 
-return `
-📣 ${name} Potential Airdrop
+  const post = `
+💎 NEW ALPHA: ${name}
 
-——
+┌──────────────────────────────┐
+  Project: ${name.toUpperCase()}
+  Status:  Early Phase 🟢
+  Network: Mainnet / Testnet
+└──────────────────────────────┘
 
-⭐ Funding : Unknown
-⭐ Backed by : Research needed
+💰 FUNDING & BACKING
+• Raised: Unknown
+• Leads: Research Pending
 
-🖥 Project Overview
-${name} is an emerging crypto project detected from early ecosystem activity.
+📝 QUICK OVERVIEW
+${name} is building a decentralized infrastructure layer. Early ecosystem activity suggests potential retroactive rewards for early users.
 
-📊 Airdrop Confirmation : No
-
-🔗 Link
+🔗 ECOSYSTEM LINK
 ${link}
 
-🔽 Strategy
+🚀 ACTION PLAN
+1️⃣ Follow project on X
+2️⃣ Join Discord community
+3️⃣ Interact with early features or testnet
 
-🟢 Join community
-🟢 Follow X
-🟢 Participate early
-
+⚠️ Risk Level: Medium
+#Airdrop #Crypto #Alpha
 `;
 
+  return post;
 }
 
 module.exports = buildResearchPost;
