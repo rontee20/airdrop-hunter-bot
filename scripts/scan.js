@@ -1,10 +1,10 @@
-const scanGalxe = require("./sources/galxe");
-const scanZealy = require("./sources/zealy");
-const scanTwitter = require("./sources/twitter");
 const scanAirdrops = require("./sources/airdrops");
 const scanCryptoRank = require("./sources/cryptorank");
 const scanDefiLlama = require("./sources/defillama");
 const scanGithub = require("./sources/github");
+const scanGalxe = require("./sources/galxe");
+const scanZealy = require("./sources/zealy");
+const scanTwitter = require("./sources/twitter");
 
 const researchProject = require("./research");
 const tokenCheck = require("./tokenCheck");
@@ -38,7 +38,7 @@ async function processProject(project) {
 
     console.log("Checking:", project.name);
 
-    // blacklist filter
+    // Skip blacklist
     if (blacklist.includes(project.name)) {
 
         console.log("Blacklisted:", project.name);
@@ -46,7 +46,7 @@ async function processProject(project) {
 
     }
 
-    // skip duplicates
+    // Skip duplicates
     if (posted.includes(project.name)) {
 
         console.log("Already posted:", project.name);
@@ -54,7 +54,7 @@ async function processProject(project) {
 
     }
 
-    // research project
+    // Research project
     const research = await researchProject(project);
 
     if (!research) {
@@ -64,7 +64,7 @@ async function processProject(project) {
 
     }
 
-    // token listing check
+    // Token listing check
     const listed = await tokenCheck(project.name);
 
     if (listed) {
@@ -74,7 +74,7 @@ async function processProject(project) {
 
     }
 
-    // scoring system
+    // Score project
     const score = scoreProject(research);
 
     if (score < 6) {
@@ -104,7 +104,7 @@ Project: ${project.name}
 
 New tasks or campaign detected.
 
-Link:
+Link
 ${project.link}
 `;
 
@@ -113,22 +113,25 @@ ${project.link}
         message = `
 💎 <b>NEW ALPHA</b>
 
-Project: ${project.name}
+Project: ${research.name}
 
-Website:
+Website
 ${research.website || "N/A"}
 
-Twitter:
+Twitter
 ${research.twitter || "N/A"}
 
-Discord:
+Discord
 ${research.discord || "N/A"}
 
-Github:
+Github
 ${research.github || "N/A"}
 
-Source:
+Source
 ${project.source}
+
+🚀 <b>Action Plan</b>
+${research.tasks.map(t => "• " + t).join("\n")}
 `;
 
     }
