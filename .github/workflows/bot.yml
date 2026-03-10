@@ -1,9 +1,9 @@
 name: Airdrop Hunter
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: "0 * * * *"
-  workflow_dispatch:
 
 jobs:
   run-bot:
@@ -14,3 +14,6 @@ jobs:
 
       - name: Run bot
         run: node scripts/scan.js
+        env:
+          BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
