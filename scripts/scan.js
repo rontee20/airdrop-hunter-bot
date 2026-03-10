@@ -5,6 +5,11 @@ const CHAT_ID = process.env.CHAT_ID;
 
 function sendTelegram(text) {
 
+  if (!text) {
+    console.log("Empty message prevented");
+    return;
+  }
+
   const data = JSON.stringify({
     chat_id: CHAT_ID,
     text: text
@@ -22,12 +27,8 @@ function sendTelegram(text) {
 
   const req = https.request(options, res => {
     let body = "";
-
     res.on("data", chunk => body += chunk);
-
-    res.on("end", () => {
-      console.log(body);
-    });
+    res.on("end", () => console.log(body));
   });
 
   req.write(data);
@@ -46,14 +47,23 @@ https.get(
     res.on("end", () => {
 
       const json = JSON.parse(body);
+
+      if (!json.items) {
+        sendTelegram("⚠️ GitHub API returned no results");
+        return;
+      }
+
       const repos = json.items.slice(0,3);
 
       repos.forEach(repo => {
 
+        const name = repo.name || "Unknown project";
+        const url = repo.html_url || "No URL";
+
         const message =
-          "🚨 Potential Crypto Project\n" +
-          "Name: " + repo.name + "\n" +
-          "Repo: " + repo.html_url;
+          "🚨 Crypto Project Found\n" +
+          "Name: " + name + "\n" +
+          "Repo: " + url;
 
         sendTelegram(message);
 
