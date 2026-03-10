@@ -40,9 +40,7 @@ https.get(
 `🚨 Potential Airdrop Project
 
 Project: ${repo.name}
-Repo: ${repo.html_url}
-
-Early blockchain/testnet repo detected`;
+Repo: ${repo.html_url}`;
 
         sendTelegram(message);
       });
