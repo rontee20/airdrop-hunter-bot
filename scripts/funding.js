@@ -1,14 +1,20 @@
-function checkFunding(name){
+function checkFunding(projectName) {
+    const tier1 = ["a16z", "Paradigm", "Polychain", "Binance Labs", "Coinbase Ventures"];
+    const tier2 = ["Animoca Brands", "Multicoin", "OKX Ventures", "HashKey"];
 
-  const vcList=[
-    "a16z",
-    "Paradigm",
-    "Coinbase Ventures",
-    "Binance Labs"
-  ];
+    let score = "Standard Project";
+    
+    tier1.forEach(vc => {
+        if (projectName.includes(vc)) score = "⭐⭐⭐ TIER 1 ALPHA";
+    });
 
-  return vcList[Math.floor(Math.random()*vcList.length)];
+    tier2.forEach(vc => {
+        if (projectName.includes(vc) && score === "Standard Project") {
+            score = "⭐ TIER 2 ALPHA";
+        }
+    });
 
+    return score;
 }
 
 module.exports = checkFunding;
