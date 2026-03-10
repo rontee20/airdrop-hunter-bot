@@ -15,7 +15,7 @@ const blacklist = require("../data/blacklist.json");
 
 const fs = require("fs");
 
-console.log("Alpha scanner started");
+console.log("🛰️ Alpha scanner started");
 
 let posted = [];
 let updates = {};
@@ -38,7 +38,7 @@ async function processProject(project) {
 
     console.log("Checking:", project.name);
 
-    // Skip blacklist
+    // blacklist filter
     if (blacklist.includes(project.name)) {
 
         console.log("Blacklisted:", project.name);
@@ -46,7 +46,7 @@ async function processProject(project) {
 
     }
 
-    // Skip duplicates
+    // duplicate filter
     if (posted.includes(project.name)) {
 
         console.log("Already posted:", project.name);
@@ -54,27 +54,21 @@ async function processProject(project) {
 
     }
 
-    // Research project
     const research = await researchProject(project);
 
-    if (!research) {
+    if (!research) return;
 
-        console.log("Research failed:", project.name);
-        return;
-
-    }
-
-    // Token listing check
+    // token listing check
     const listed = await tokenCheck(project.name);
 
     if (listed) {
 
-        console.log("Token already listed:", project.name);
+        console.log("Token listed:", project.name);
         return;
 
     }
 
-    // Score project
+    // scoring filter
     const score = scoreProject(research);
 
     if (score < 6) {
@@ -86,52 +80,54 @@ async function processProject(project) {
 
     const previous = updates[project.name];
 
-    if (previous && previous.link === project.link) {
-
-        console.log("No update:", project.name);
-        return;
-
-    }
-
     let message = "";
 
     if (previous) {
 
         message = `
-⚡ <b>UPDATE</b>
+⚡ <b>UPDATE DETECTED</b>
 
-Project: ${project.name}
+💎 <b>${research.name}</b>
 
-New tasks or campaign detected.
+New campaign or tasks detected.
 
-Link
-${project.link}
+🌐 Website
+${research.website || "N/A"}
+
+🐦 X (Twitter)
+${research.twitter || "N/A"}
+
+🚀 <b>Action Plan</b>
+${research.tasks.map(t => "• " + t).join("\n")}
+
+<i>Stay active for possible retroactive rewards.</i>
 `;
 
     } else {
 
         message = `
-💎 <b>NEW ALPHA</b>
+💎 <b>NEW AIRDROP ALPHA</b>
 
-Project: ${research.name}
+┌────────────────────────
+<b>${research.name}</b>
+└────────────────────────
 
-Website
+🌐 <b>Website</b>
 ${research.website || "N/A"}
 
-Twitter
+🐦 <b>X (Twitter)</b>
 ${research.twitter || "N/A"}
 
-Discord
-${research.discord || "N/A"}
-
-Github
-${research.github || "N/A"}
-
-Source
+📡 <b>Source</b>
 ${project.source}
+
+⭐ <b>Airdrop Score</b>
+${score}/10
 
 🚀 <b>Action Plan</b>
 ${research.tasks.map(t => "• " + t).join("\n")}
+
+⚠️ <i>Token not listed yet — early participation recommended.</i>
 `;
 
     }
