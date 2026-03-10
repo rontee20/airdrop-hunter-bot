@@ -21,7 +21,12 @@ async function researchProject(name, link) {
                 twitter = href;
             }
 
-            if (href.includes("http") && !website && !href.includes("coingecko")) {
+            if (
+                href.startsWith("http") &&
+                !href.includes("coingecko") &&
+                !href.includes("coinmarketcap") &&
+                !website
+            ) {
                 website = href;
             }
 
