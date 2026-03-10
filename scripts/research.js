@@ -1,34 +1,27 @@
-function buildResearchPost(name, link) {
+// research.js
+function buildPost(name, link) {
+  return `
+<b>🚀 NEW ALPHA DETECTED: ${name.toUpperCase()}</b>
+<pre>Status: Early Ecosystem Activity</pre>
 
-  const post = `
-💎 NEW ALPHA: ${name}
+<b>💎 Project Overview</b>
+${name} is currently trending on CoinGecko. High social volume often signals upcoming ecosystem incentives or airdrop snapshots.
 
-┌──────────────────────────────┐
-  Project: ${name.toUpperCase()}
-  Status:  Early Phase 🟢
-  Network: Mainnet / Testnet
-└──────────────────────────────┘
+<b>📊 Airdrop Stats</b>
+• <b>Confirmed:</b> No
+• <b>Tier:</b> Speculative
+• <b>Cost:</b> $0 (Research Required)
 
-💰 FUNDING & BACKING
-• Raised: Unknown
-• Leads: Research Pending
-
-📝 QUICK OVERVIEW
-${name} is building a decentralized infrastructure layer. Early ecosystem activity suggests potential retroactive rewards for early users.
-
-🔗 ECOSYSTEM LINK
+<b>🔗 Official Link</b>
 ${link}
 
-🚀 ACTION PLAN
-1️⃣ Follow project on X
-2️⃣ Join Discord community
-3️⃣ Interact with early features or testnet
+<b>🔽 Strategy</b>
+✅ Follow Project X
+✅ Join Community Discord
+✅ Interact with Testnet/Mainnet if available
 
-⚠️ Risk Level: Medium
-#Airdrop #Crypto #Alpha
+<i>⚠️ Always DYOR. High volatility environment.</i>
 `;
-
-  return post;
 }
 
-module.exports = buildResearchPost;
+module.exports = buildPost;
