@@ -1,89 +1,51 @@
 const axios = require("axios");
 
-async function researchProject(name) {
+async function researchProject(name, link) {
 
     try {
 
-        // search project
+        // Check if token exists on CoinGecko
         const search = await axios.get(
             `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(name)}`
         );
 
-        if (!search.data.coins.length) return null;
+        // If token already listed → skip
+        if (search.data.coins.length > 0) {
 
-        const coinId = search.data.coins[0].id;
+            console.log("Token already listed:", name);
+            return null;
 
-        // get full project data
-        const res = await axios.get(
-            `https://api.coingecko.com/api/v3/coins/${coinId}`
-        );
+        }
 
-        const coin = res.data;
-
-        const website = coin.links.homepage[0];
-        const twitter = coin.links.twitter_screen_name
-            ? `https://x.com/${coin.links.twitter_screen_name}`
-            : null;
-
-        if (!website || !twitter) return null;
-
-        const marketCap = coin.market_data.market_cap.usd || 0;
-        const rank = coin.market_cap_rank || 9999;
-
-        // ---------- rating logic ----------
-        let rating = 5;
-
-        if (rank < 100) rating = 9;
-        else if (rank < 300) rating = 8;
-        else if (rank < 600) rating = 7;
-        else rating = 6;
-
-        // ---------- tier logic ----------
-        let tier = 3;
-
-        if (rank < 100) tier = 1;
-        else if (rank < 300) tier = 2;
-
+        // Simple alpha message
         const message = `
-<b>💎 NEW ALPHA: ${coin.name.toUpperCase()}</b>
+💎 NEW EARLY ALPHA
 
-┌──────────────────────────────┐
-Project: ${coin.name}
-Status: Active 🟢
-Network: Crypto Ecosystem
-└──────────────────────────────┘
+Project: ${name}
 
-<b>📊 PROJECT SCORE</b>
-• Rating: ${rating}/10
-• Tier: ${tier}
-• Market Rank: #${rank}
-• Time: ~5 minutes research
+Status: Pre-Token Stage
+Token: Not Listed Yet
 
-<b>📝 QUICK OVERVIEW</b>
-${coin.description.en.slice(0,200)}...
+Why it matters:
+Early users often qualify for retroactive rewards when tokens launch.
 
-<b>🌐 WEBSITE</b>
-${website}
+Project Link:
+${link}
 
-<b>📱 OFFICIAL X</b>
-${twitter}
+Possible actions:
+• Visit the project site
+• Follow official X
+• Join community
+• Complete early quests if available
 
-<b>📊 MARKET DATA</b>
-https://www.coingecko.com/en/coins/${coinId}
-
-<b>🚀 ACTION PLAN</b>
-1️⃣ Visit the website  
-2️⃣ Follow official X  
-3️⃣ Monitor ecosystem updates  
-
-<i>More research updates coming if new opportunities appear.</i>
+More research coming if ecosystem activity increases.
 `;
 
         return message;
 
     } catch (err) {
 
-        console.log("Research failed:", name);
+        console.log("Research error:", name);
         return null;
 
     }
