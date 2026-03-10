@@ -46,13 +46,15 @@ async function processProject(project) {
 
     }
 
-    // duplicate filter
-    if (posted.includes(project.name)) {
+    // duplicate filter (strong)
+const key = project.name.toLowerCase();
 
-        console.log("Already posted:", project.name);
-        return;
+if (posted.includes(key)) {
 
-    }
+    console.log("Duplicate project skipped:", project.name);
+    return;
+
+}
 
     const research = await researchProject(project);
 
