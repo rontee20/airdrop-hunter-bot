@@ -1,31 +1,20 @@
-// research.js
-function buildPost(name, link, type = "Early Stage") {
-  return `
-<b>🚀 NEW ALPHA: ${name.toUpperCase()}</b>
-<pre>Status: ${type}</pre>
+function checkFunding(projectName) {
+    const tier1 = ["a16z", "Paradigm", "Polychain", "Binance Labs", "Coinbase Ventures"];
+    const tier2 = ["Animoca Brands", "Multicoin", "OKX Ventures", "HashKey"];
 
-<b>✅ WHY JOIN?</b>
-• <b>Stage:</b> Super Early
-• <b>Cost:</b> $0 / Free
-• <b>Effort:</b> Easy (5 mins)
-• <b>Real/Scam:</b> Verified Safe ✅
+    let score = "Standard Project";
+    
+    tier1.forEach(vc => {
+        if (projectName.includes(vc)) score = "⭐⭐⭐ TIER 1 ALPHA";
+    });
 
-<b>💰 MONEY INFO</b>
-• <b>Funding:</b> VC Backed / High TVL
-• <b>Expected Pay:</b> Early = More Coins
+    tier2.forEach(vc => {
+        if (projectName.includes(vc) && score === "Standard Project") {
+            score = "⭐ TIER 2 ALPHA";
+        }
+    });
 
-<b>📱 OFFICIAL LINKS</b>
-• <b>Project X:</b> <a href="https://x.com/search?q=${name}">Search on X</a>
-• <b>Data:</b> <a href="${link}">View on Gecko</a>
-
-<b>🛠 HOW TO JOIN (EASY)</b>
-1️⃣ Open the link above.
-2️⃣ Follow them on X/Twitter.
-3️⃣ Join their Discord.
-4️⃣ Done! Stay active.
-
-<i>⚠️ Always DYOR. High volatility.</i>
-`;
+    return score;
 }
 
-module.exports = buildPost;
+module.exports = checkFunding;
