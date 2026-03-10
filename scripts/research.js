@@ -1,31 +1,51 @@
-function buildPost(name, link, status) {
+const axios = require("axios");
+const cheerio = require("cheerio");
 
-return `
-<b>🚀 NEW ALPHA: ${name.toUpperCase()}</b>
-<pre>Status: ${status || "Standard Project"}</pre>
+async function researchProject(name, link) {
 
-<b>✅ WHY JOIN?</b>
-• <b>Stage:</b> Super Early
-• <b>Cost:</b> $0 / Free
-• <b>Effort:</b> Easy (5 mins)
-• <b>Real/Scam:</b> Verified Safe ✅
+    try {
 
-<b>💰 MONEY INFO</b>
-• <b>Funding:</b> VC Backed / High TVL
-• <b>Expected Pay:</b> Early = More Coins
+        const res = await axios.get(link);
+        const $ = cheerio.load(res.data);
 
-<b>📱 OFFICIAL LINKS</b>
-• <b>Project X:</b> <a href="https://x.com/search?q=${encodeURIComponent(name)}">Search on X</a>
-• <b>Data:</b> <a href="${link}">View on Gecko</a>
+        let twitter = null;
+        let website = null;
 
-<b>🛠 HOW TO JOIN (EASY)</b>
-1️⃣ Open the link above.
-2️⃣ Follow them on X/Twitter.
-3️⃣ Join their Discord.
-4️⃣ Done! Stay active.
+        $("a").each((i, el) => {
 
-<i>⚠️ Always DYOR. High volatility.</i>
-`;
+            const href = $(el).attr("href");
+
+            if (!href) return;
+
+            if (href.includes("twitter.com") || href.includes("x.com")) {
+                twitter = href;
+            }
+
+            if (href.includes("http") && !website && !href.includes("coingecko")) {
+                website = href;
+            }
+
+        });
+
+        // skip if important info missing
+        if (!twitter || !website) {
+            return null;
+        }
+
+        return {
+            name,
+            link,
+            twitter,
+            website
+        };
+
+    } catch (err) {
+
+        console.log("Research failed:", name);
+        return null;
+
+    }
+
 }
 
-module.exports = buildPost;
+module.exports = researchProject;
