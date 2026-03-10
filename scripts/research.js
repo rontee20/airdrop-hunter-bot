@@ -1,8 +1,8 @@
-// research.js
-function buildPost(name, link, type = "Early Stage") {
-  return `
+function buildPost(name, link, status) {
+
+return `
 <b>🚀 NEW ALPHA: ${name.toUpperCase()}</b>
-<pre>Status: ${type}</pre>
+<pre>Status: ${status || "Standard Project"}</pre>
 
 <b>✅ WHY JOIN?</b>
 • <b>Stage:</b> Super Early
@@ -15,7 +15,7 @@ function buildPost(name, link, type = "Early Stage") {
 • <b>Expected Pay:</b> Early = More Coins
 
 <b>📱 OFFICIAL LINKS</b>
-• <b>Project X:</b> <a href="https://x.com/search?q=${name}">Search on X</a>
+• <b>Project X:</b> <a href="https://x.com/search?q=${encodeURIComponent(name)}">Search on X</a>
 • <b>Data:</b> <a href="${link}">View on Gecko</a>
 
 <b>🛠 HOW TO JOIN (EASY)</b>
