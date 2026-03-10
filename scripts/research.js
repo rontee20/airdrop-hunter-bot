@@ -1,49 +1,72 @@
 const axios = require("axios");
+const cheerio = require("cheerio");
 
-async function researchProject(name, link) {
+async function researchProject(project) {
 
     try {
 
-        const search = await axios.get(
-            `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(name)}`
-        );
+        const res = await axios.get(project.link, {
+            headers: {
+                "User-Agent": "Mozilla/5.0"
+            },
+            timeout: 15000
+        });
 
-        // if token exists -> skip
-        if (search.data.coins.length > 0) {
+        const $ = cheerio.load(res.data);
 
-            console.log("Token already listed:", name);
-            return null;
+        let twitter = null;
+        let discord = null;
+        let github = null;
+        let docs = null;
 
-        }
+        $("a").each((i, el) => {
 
-        const message = `
-<b>💎 NEW EARLY ALPHA</b>
+            const href = $(el).attr("href");
 
-Project: ${name}
+            if (!href) return;
 
-Status: Pre-Token Stage
-Token: Not Listed Yet
+            if (!twitter && (href.includes("twitter.com") || href.includes("x.com"))) {
+                twitter = href;
+            }
 
-Why this matters:
-Early users often receive retroactive airdrops if a token launches later.
+            if (!discord && href.includes("discord")) {
+                discord = href;
+            }
 
-<b>Project Link</b>
-${link}
+            if (!github && href.includes("github.com")) {
+                github = href;
+            }
 
-<b>Possible Actions</b>
-• Visit website  
-• Follow official X  
-• Join community  
-• Complete early tasks  
+            if (!docs && href.includes("docs")) {
+                docs = href;
+            }
 
-<i>More research coming if activity increases.</i>
-`;
+        });
 
-        return message;
+        // Detect possible tasks
+        const tasks = [];
+
+        if (twitter) tasks.push("Follow X");
+        if (discord) tasks.push("Join Discord");
+
+        tasks.push("Use Testnet");
+        tasks.push("Bridge Testnet");
+        tasks.push("Complete Galxe Quest");
+
+        return {
+            name: project.name,
+            website: project.link,
+            twitter,
+            discord,
+            github,
+            docs,
+            tasks,
+            source: project.source
+        };
 
     } catch (err) {
 
-        console.log("Research error:", name);
+        console.log("Research failed:", project.name);
         return null;
 
     }
