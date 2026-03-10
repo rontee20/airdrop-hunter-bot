@@ -1,28 +1,46 @@
-const tokenCheck = require("./tokenCheck");
-const scoreProject = require("./scoring");
-const fs = require("fs");
 const scanAirdrops = require("./sources/airdrops");
-const scanCryptoRank = require("./sources/cryptorank");
-const scanGalxe = require("./sources/galxe");
-const scanZealy = require("./sources/zealy");
-const scanDefiLlama = require("./sources/defillama");
-const scanGithub = require("./sources/github");
-
 const researchProject = require("./research");
 const tokenCheck = require("./tokenCheck");
 const scoreProject = require("./scoring");
 const { sendTelegram } = require("./telegram");
 
-const posted = new Map();
+const fs = require("fs");
+
+let posted = [];
+
+try {
+
+    posted = JSON.parse(fs.readFileSync("data/projects.json"));
+
+} catch {
+
+    posted = [];
+
+}
 
 async function processProject(project) {
 
-    console.log("Checking:", project.name);
+    console.log("Checking project:", project.name);
 
+    // skip duplicates
+    if (posted.includes(project.name)) {
+
+        console.log("Already posted:", project.name);
+        return;
+
+    }
+
+    // research project
     const research = await researchProject(project);
 
-    if (!research) return;
+    if (!research) {
 
+        console.log("Research failed:", project.name);
+        return;
+
+    }
+
+    // check token listing
     const listed = await tokenCheck(project.name);
 
     if (listed) {
@@ -32,11 +50,12 @@ async function processProject(project) {
 
     }
 
+    // scoring filter
     const score = scoreProject(research);
 
     if (score < 6) {
 
-        console.log("Low quality project:", project.name);
+        console.log("Low score project:", project.name);
         return;
 
     }
@@ -44,49 +63,41 @@ async function processProject(project) {
     const message = `
 💎 <b>NEW ALPHA PROJECT</b>
 
-Project: ${project.name}
-
-Rating: ${score}/10
+Project: ${research.name}
 
 Website:
 ${research.website}
 
 Twitter:
-${research.twitter}
+${research.twitter || "Not found"}
+
+Discord:
+${research.discord || "Not found"}
+
+Github:
+${research.github || "Not found"}
 
 Source:
-${project.source}
-
-Tasks:
-• Visit website
-• Follow Twitter
-• Join community
-
-<i>More updates coming if new tasks appear</i>
+${research.source}
 `;
 
     await sendTelegram(message);
 
-    posted.set(project.name, research);
+    // save project
+    posted.push(project.name);
+
+    fs.writeFileSync(
+        "data/projects.json",
+        JSON.stringify(posted, null, 2)
+    );
 
 }
 
 async function main() {
 
-    const sources = await Promise.all([
+    const projects = await scanAirdrops();
 
-        scanAirdrops(),
-        scanCryptoRank(),
-        scanGalxe(),
-        scanZealy(),
-        scanDefiLlama(),
-        scanGithub()
-
-    ]);
-
-    const projects = sources.flat();
-
-    for (const p of projects) {
+    for (const p of projects.slice(0, 10)) {
 
         await processProject(p);
 
