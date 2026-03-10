@@ -1,3 +1,6 @@
+const tokenCheck = require("./tokenCheck");
+const scoreProject = require("./scoring");
+const fs = require("fs");
 const scanAirdrops = require("./sources/airdrops");
 const scanCryptoRank = require("./sources/cryptorank");
 const scanGalxe = require("./sources/galxe");
