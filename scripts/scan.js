@@ -1,24 +1,24 @@
-const scanCMC = require("./cmc");
 const scanTrackers = require("./trackers");
 const scanNews = require("./news");
 const scanGalxe = require("./galxe");
 const scanZealy = require("./zealy");
+const scanCMC = require("./cmc");
 const checkFunding = require("./funding");
 const buildPost = require("./research");
 const { sendTelegram } = require("./telegram");
 
-async function runMasterScanner() {
+console.log("🛰️ Global Alpha Scan Started...");
 
-    console.log("🛰️ Global Alpha Scan Started...");
+async function main() {
 
-    // TEST MESSAGE (to confirm bot works)
+    // Test message
     await sendTelegram(buildPost(
         "Pudgy Penguins",
         "https://www.coingecko.com/en/coins/pudgy-penguins",
         "Standard Project"
     ));
 
-    // Scan Trackers
+    // Trackers
     scanTrackers(async (projects) => {
 
         if (!Array.isArray(projects)) return;
@@ -39,7 +39,7 @@ async function runMasterScanner() {
 
     });
 
-    // Scan News
+    // News
     scanNews(async (newsItems) => {
 
         if (!Array.isArray(newsItems)) return;
@@ -62,7 +62,7 @@ async function runMasterScanner() {
 
     });
 
-    // Scan Galxe
+    // Galxe
     scanGalxe(async (campaigns) => {
 
         if (!Array.isArray(campaigns)) return;
@@ -81,7 +81,7 @@ async function runMasterScanner() {
 
     });
 
-    // Scan Zealy
+    // Zealy
     scanZealy(async (communities) => {
 
         if (!Array.isArray(communities)) return;
@@ -100,6 +100,25 @@ async function runMasterScanner() {
 
     });
 
+    // CoinMarketCap listings
+    scanCMC(async (coins) => {
+
+        if (!Array.isArray(coins)) return;
+
+        for (const coin of coins.slice(0,3)) {
+
+            const post = buildPost(
+                coin.name,
+                coin.link,
+                "New Listing"
+            );
+
+            await sendTelegram(post);
+
+        }
+
+    });
+
 }
 
-runMasterScanner();
+main();
