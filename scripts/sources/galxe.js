@@ -8,11 +8,12 @@ async function scanGalxe() {
             "https://graphigo.prd.galaxy.eco/query"
         );
 
+        // placeholder until GraphQL query added
         return [];
 
     } catch (err) {
 
-        console.log("Galxe scan error");
+        console.log("Galxe failed — skipping");
         return [];
 
     }
