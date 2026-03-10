@@ -1,3 +1,6 @@
+const scanGithub = require("./sources/github");
+const scanGalxe = require("./sources/galxe");
+const scanZealy = require("./sources/zealy");
 const scanAirdrops = require("./sources/airdrops");
 const scanCryptoRank = require("./sources/cryptorank");
 const scanDefiLlama = require("./sources/defillama");
