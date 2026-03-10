@@ -4,30 +4,20 @@ const { sendTelegram } = require("./telegram");
 
 console.log("Alpha scanner started");
 
-const posted = new Set();
-
 async function processProject(name, link) {
 
-    if (!name) return;
-
-    const key = name.toLowerCase();
-
-    if (posted.has(key)) return;
-
-    posted.add(key);
-
-    console.log("Checking:", name);
+    console.log("Checking project:", name);
 
     const message = await researchProject(name, link);
 
     if (!message) {
 
-        console.log("Skipped:", name);
+        console.log("Project skipped:", name);
         return;
 
     }
 
-    console.log("Posting:", name);
+    console.log("Posting project:", name);
 
     await sendTelegram(message);
 
@@ -37,7 +27,14 @@ async function main() {
 
     scanAirdrops(async (projects) => {
 
-        if (!Array.isArray(projects)) return;
+        if (!Array.isArray(projects)) {
+
+            console.log("No projects found");
+            return;
+
+        }
+
+        console.log("Projects found:", projects.length);
 
         for (const p of projects.slice(0,5)) {
 
