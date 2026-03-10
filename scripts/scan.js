@@ -1,3 +1,4 @@
+const scanCMC = require("./cmc");
 const scanTrackers = require("./trackers");
 const scanNews = require("./news");
 const scanGalxe = require("./galxe");
