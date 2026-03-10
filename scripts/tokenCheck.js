@@ -6,11 +6,13 @@ async function tokenCheck(name) {
 
         const url = `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(name)}`;
 
-        const res = await axios.get(url);
+        const res = await axios.get(url, { timeout: 10000 });
 
-        if (res.data.coins && res.data.coins.length > 0) {
+        if (!res.data || !res.data.coins) return false;
 
-            return true; // token exists
+        if (res.data.coins.length > 0) {
+
+            return true;
 
         }
 
