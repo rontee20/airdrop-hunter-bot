@@ -1,46 +1,65 @@
-const researchProject = require("./research");
 const scanTrackers = require("./trackers");
 const scanNews = require("./news");
 const scanGalxe = require("./galxe");
 const scanZealy = require("./zealy");
 const scanCMC = require("./cmc");
 const checkFunding = require("./funding");
-const buildPost = require("./research");
+
+const researchProject = require("./research");
 const { sendTelegram } = require("./telegram");
 
 console.log("🛰️ Global Alpha Scan Started...");
 
+async function processProject(name, link, status) {
+
+    const research = await researchProject(name, link);
+
+    if (!research) {
+
+        console.log("❌ Skipping project:", name);
+        return;
+
+    }
+
+    const message = `
+<b>🚀 NEW ALPHA: ${research.name.toUpperCase()}</b>
+
+<pre>Status: ${status}</pre>
+
+<b>🌐 OFFICIAL WEBSITE</b>
+<a href="${research.website}">${research.website}</a>
+
+<b>📱 OFFICIAL X</b>
+<a href="${research.twitter}">${research.twitter}</a>
+
+<b>📊 DATA</b>
+<a href="${research.link}">View Market Data</a>
+
+<i>⚠️ Always DYOR</i>
+`;
+
+    await sendTelegram(message);
+
+}
+
 async function main() {
 
-    // Test message
-    await sendTelegram(buildPost(
-        "Pudgy Penguins",
-        "https://www.coingecko.com/en/coins/pudgy-penguins",
-        "Standard Project"
-    ));
-
-    // Trackers
+    // CoinGecko trackers
     scanTrackers(async (projects) => {
 
         if (!Array.isArray(projects)) return;
 
-        for (const p of projects.slice(0,3)) {
+        for (const p of projects.slice(0, 3)) {
 
             const score = checkFunding(p.name);
 
-            const post = buildPost(
-                p.name,
-                p.link,
-                score
-            );
-
-            await sendTelegram(post);
+            await processProject(p.name, p.link, score);
 
         }
 
     });
 
-    // News
+    // Crypto news
     scanNews(async (newsItems) => {
 
         if (!Array.isArray(newsItems)) return;
@@ -49,13 +68,11 @@ async function main() {
 
             if (/airdrop|funding|testnet|mainnet/i.test(item.name)) {
 
-                const post = buildPost(
+                await processProject(
                     item.name,
                     item.link,
                     "Breaking News"
                 );
-
-                await sendTelegram(post);
 
             }
 
@@ -70,13 +87,11 @@ async function main() {
 
         for (const c of campaigns.slice(0,3)) {
 
-            const post = buildPost(
+            await processProject(
                 c.name,
                 c.link,
                 "Galxe Campaign"
             );
-
-            await sendTelegram(post);
 
         }
 
@@ -89,32 +104,28 @@ async function main() {
 
         for (const z of communities.slice(0,3)) {
 
-            const post = buildPost(
+            await processProject(
                 z.name,
                 z.link,
                 "Zealy Campaign"
             );
 
-            await sendTelegram(post);
-
         }
 
     });
 
-    // CoinMarketCap listings
+    // CoinMarketCap
     scanCMC(async (coins) => {
 
         if (!Array.isArray(coins)) return;
 
         for (const coin of coins.slice(0,3)) {
 
-            const post = buildPost(
+            await processProject(
                 coin.name,
                 coin.link,
                 "New Listing"
             );
-
-            await sendTelegram(post);
 
         }
 
