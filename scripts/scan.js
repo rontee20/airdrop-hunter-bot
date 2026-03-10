@@ -1,49 +1,46 @@
-const scanAirdrops = require("./airdrops");
-const researchProject = require("./research");
-const { sendTelegram } = require("./telegram");
+const axios = require("axios");
+const cheerio = require("cheerio");
 
-console.log("Alpha scanner started");
+async function scanAirdrops(callback) {
 
-async function processProject(name, link) {
+    try {
 
-    console.log("Checking project:", name);
+        const url = "https://airdrops.io/airdrops/";
 
-    const message = await researchProject(name, link);
+        const res = await axios.get(url);
 
-    if (!message) {
+        const $ = cheerio.load(res.data);
 
-        console.log("Project skipped:", name);
-        return;
+        const projects = [];
+
+        $(".airdrops-list a").each((i, el) => {
+
+            const name = $(el).text().trim();
+            const link = $(el).attr("href");
+
+            if (name && link) {
+
+                projects.push({
+                    name: name,
+                    link: link.startsWith("http") ? link : "https://airdrops.io" + link
+                });
+
+            }
+
+        });
+
+        console.log("Airdrops detected:", projects.length);
+
+        callback(projects);
+
+    } catch (err) {
+
+        console.log("Airdrops.io scan error:", err.message);
+
+        callback([]);
 
     }
 
-    console.log("Posting project:", name);
-
-    await sendTelegram(message);
-
 }
 
-async function main() {
-
-    scanAirdrops(async (projects) => {
-
-        if (!Array.isArray(projects)) {
-
-            console.log("No projects found");
-            return;
-
-        }
-
-        console.log("Projects found:", projects.length);
-
-        for (const p of projects.slice(0,5)) {
-
-            await processProject(p.name, p.link);
-
-        }
-
-    });
-
-}
-
-main();
+module.exports = scanAirdrops;
