@@ -3,58 +3,48 @@ const scanNews = require("./news");
 const scanGalxe = require("./galxe");
 const scanZealy = require("./zealy");
 const scanCMC = require("./cmc");
-const checkFunding = require("./funding");
 
 const researchProject = require("./research");
 const { sendTelegram } = require("./telegram");
 
 console.log("🛰️ Global Alpha Scan Started...");
 
-async function processProject(name, link, status) {
+async function processProject(name) {
 
-    const research = await researchProject(name, link);
+    const research = await researchProject(name);
 
     if (!research) {
-
-        console.log("❌ Skipping project:", name);
+        console.log("Skipping project:", name);
         return;
-
     }
 
     const message = `
-<b>🚀 NEW ALPHA: ${research.name.toUpperCase()}</b>
+<b>🚀 ${research.name.toUpperCase()}</b>
 
-<pre>Status: ${status}</pre>
+<b>Official Website</b>
+${research.website}
 
-<b>🌐 OFFICIAL WEBSITE</b>
-<a href="${research.website}">${research.website}</a>
+<b>Official X</b>
+${research.twitter}
 
-<b>📱 OFFICIAL X</b>
-<a href="${research.twitter}">${research.twitter}</a>
+<b>Data</b>
+${research.gecko}
 
-<b>📊 DATA</b>
-<a href="${research.link}">View Market Data</a>
-
-<i>⚠️ Always DYOR</i>
+<i>Always DYOR</i>
 `;
 
     await sendTelegram(message);
-
 }
 
 async function main() {
 
-    // CoinGecko trackers
+    // CoinGecko trending
     scanTrackers(async (projects) => {
 
         if (!Array.isArray(projects)) return;
 
         for (const p of projects.slice(0, 3)) {
-
-            const score = checkFunding(p.name);
-
-            await processProject(p.name, p.link, score);
-
+            await processProject(p.name);
         }
 
     });
@@ -68,11 +58,7 @@ async function main() {
 
             if (/airdrop|funding|testnet|mainnet/i.test(item.name)) {
 
-                await processProject(
-                    item.name,
-                    item.link,
-                    "Breaking News"
-                );
+                await processProject(item.name);
 
             }
 
@@ -80,52 +66,40 @@ async function main() {
 
     });
 
-    // Galxe
+    // Galxe campaigns
     scanGalxe(async (campaigns) => {
 
         if (!Array.isArray(campaigns)) return;
 
         for (const c of campaigns.slice(0,3)) {
 
-            await processProject(
-                c.name,
-                c.link,
-                "Galxe Campaign"
-            );
+            await processProject(c.name);
 
         }
 
     });
 
-    // Zealy
+    // Zealy campaigns
     scanZealy(async (communities) => {
 
         if (!Array.isArray(communities)) return;
 
         for (const z of communities.slice(0,3)) {
 
-            await processProject(
-                z.name,
-                z.link,
-                "Zealy Campaign"
-            );
+            await processProject(z.name);
 
         }
 
     });
 
-    // CoinMarketCap
+    // CoinMarketCap new listings
     scanCMC(async (coins) => {
 
         if (!Array.isArray(coins)) return;
 
         for (const coin of coins.slice(0,3)) {
 
-            await processProject(
-                coin.name,
-                coin.link,
-                "New Listing"
-            );
+            await processProject(coin.name);
 
         }
 
