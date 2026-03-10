@@ -3,16 +3,18 @@ const https = require("https");
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 
-function sendTelegram(message) {
+function sendTelegram(text) {
 
-  if (!message) {
+  if (!text || text.trim() === "") {
     console.log("Message empty, skipping");
     return;
   }
 
+  console.log("Sending:", text);
+
   const data = JSON.stringify({
     chat_id: CHAT_ID,
-    text: message
+    text: text
   });
 
   const options = {
@@ -26,18 +28,18 @@ function sendTelegram(message) {
   };
 
   const req = https.request(options, res => {
-    let response = "";
 
-    res.on("data", chunk => response += chunk);
+    let body = "";
+
+    res.on("data", chunk => body += chunk);
 
     res.on("end", () => {
-      console.log("Telegram:", response);
+      console.log("Telegram:", body);
     });
+
   });
 
-  req.on("error", error => {
-    console.error("Error:", error);
-  });
+  req.on("error", err => console.error(err));
 
   req.write(data);
   req.end();
@@ -45,7 +47,7 @@ function sendTelegram(message) {
 
 https.get(
   "https://api.github.com/search/repositories?q=blockchain&sort=updated",
-  { headers: { "User-Agent": "github-bot" } },
+  { headers: { "User-Agent": "github-airdrop-bot" } },
   res => {
 
     let body = "";
@@ -54,18 +56,16 @@ https.get(
 
     res.on("end", () => {
 
-      const json = JSON.parse(body);
-
-      const repos = json.items.slice(0,3);
+      const repos = JSON.parse(body).items.slice(0, 3);
 
       repos.forEach(repo => {
 
-        const message =
+        const msg =
           "🚨 Crypto Project Found\n" +
           "Name: " + repo.name + "\n" +
           "Repo: " + repo.html_url;
 
-        sendTelegram(message);
+        sendTelegram(msg);
 
       });
 
