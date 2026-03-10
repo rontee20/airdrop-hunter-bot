@@ -16,7 +16,6 @@ async function researchProject(project) {
 
         let twitter = null;
         let discord = null;
-        let github = null;
         let docs = null;
 
         $("a").each((i, el) => {
@@ -31,10 +30,6 @@ async function researchProject(project) {
 
             if (!discord && href.includes("discord")) {
                 discord = href;
-            }
-
-            if (!github && href.includes("github.com")) {
-                github = href;
             }
 
             if (!docs && href.includes("docs")) {
@@ -58,7 +53,6 @@ async function researchProject(project) {
             website: project.link,
             twitter,
             discord,
-            github,
             docs,
             tasks,
             source: project.source
