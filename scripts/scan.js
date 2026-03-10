@@ -1,3 +1,4 @@
+const blacklist = require("../data/blacklist.json");
 const scanGithub = require("./sources/github");
 const scanGalxe = require("./sources/galxe");
 const scanZealy = require("./sources/zealy");
