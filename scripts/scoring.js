@@ -1,16 +1,18 @@
-function scoreProject(project) {
+function scoreProject(p) {
 
     let score = 0;
 
-    if (project.website) score += 2;
-    if (project.twitter) score += 2;
-    if (project.discord) score += 1;
-    if (project.github) score += 2;
-    if (project.docs) score += 1;
+    if (p.website) score += 2;
+    if (p.twitter) score += 2;
+    if (p.discord) score += 1;
+    if (p.github) score += 2;
+    if (p.docs) score += 1;
 
-    if (project.source === "Galxe") score += 2;
-    if (project.source === "Zealy") score += 2;
-    if (project.source === "CryptoRank") score += 1;
+    if (p.source === "Galxe") score += 3;
+    if (p.source === "Zealy") score += 3;
+    if (p.source === "CryptoRank") score += 2;
+    if (p.source === "airdrops.io") score += 2;
+    if (p.source === "GitHub") score += 1;
 
     return score;
 
