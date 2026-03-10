@@ -4,6 +4,7 @@ async function researchProject(name) {
 
     try {
 
+        // search project
         const search = await axios.get(
             `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(name)}`
         );
@@ -12,6 +13,7 @@ async function researchProject(name) {
 
         const coinId = search.data.coins[0].id;
 
+        // get full project data
         const res = await axios.get(
             `https://api.coingecko.com/api/v3/coins/${coinId}`
         );
@@ -25,45 +27,56 @@ async function researchProject(name) {
 
         if (!website || !twitter) return null;
 
-        // simple rating logic
-        const rating = Math.floor(Math.random() * 3) + 7; // 7-9
+        const marketCap = coin.market_data.market_cap.usd || 0;
+        const rank = coin.market_cap_rank || 9999;
+
+        // ---------- rating logic ----------
+        let rating = 5;
+
+        if (rank < 100) rating = 9;
+        else if (rank < 300) rating = 8;
+        else if (rank < 600) rating = 7;
+        else rating = 6;
+
+        // ---------- tier logic ----------
+        let tier = 3;
+
+        if (rank < 100) tier = 1;
+        else if (rank < 300) tier = 2;
 
         const message = `
-<b>💎 NEW ALPHA: ${coin.name}</b>
+<b>💎 NEW ALPHA: ${coin.name.toUpperCase()}</b>
 
 ┌──────────────────────────────┐
-Project: ${coin.name.toUpperCase()}
-Status: Early Phase 🟢
-Network: Unknown
+Project: ${coin.name}
+Status: Active 🟢
+Network: Crypto Ecosystem
 └──────────────────────────────┘
-
-<b>💰 FUNDING & BACKING</b>
-• Raised: Unknown
-• Leads:  Unknown
 
 <b>📊 PROJECT SCORE</b>
 • Rating: ${rating}/10
-• Tier: 2
-• Time: ~5 mins
-• TGE: Unknown
-• Expected Profit: Unknown
+• Tier: ${tier}
+• Market Rank: #${rank}
+• Time: ~5 minutes research
 
 <b>📝 QUICK OVERVIEW</b>
-${coin.name} is a crypto project listed on CoinGecko. Early ecosystem monitoring suggests potential opportunities for early users if new campaigns or incentives launch.
+${coin.description.en.slice(0,200)}...
 
-<b>🔗 ECOSYSTEM LINK</b>
+<b>🌐 WEBSITE</b>
 ${website}
 
 <b>📱 OFFICIAL X</b>
 ${twitter}
 
-<b>🚀 ACTION PLAN</b>
-1. Visit the official website  
-2. Follow the official X account  
-3. Join community channels  
-4. Monitor announcements  
+<b>📊 MARKET DATA</b>
+https://www.coingecko.com/en/coins/${coinId}
 
-<i>If full research is not complete yet, more updates coming.</i>
+<b>🚀 ACTION PLAN</b>
+1️⃣ Visit the website  
+2️⃣ Follow official X  
+3️⃣ Monitor ecosystem updates  
+
+<i>More research updates coming if new opportunities appear.</i>
 `;
 
         return message;
