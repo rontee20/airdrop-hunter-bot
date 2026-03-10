@@ -5,37 +5,56 @@ async function scanCryptoRank() {
 
     try {
 
-        const res = await axios.get("https://cryptorank.io/airdrops", {
-            timeout: 10000,
+        const url = "https://cryptorank.io/airdrops";
+
+        const res = await axios.get(url, {
             headers: {
                 "User-Agent": "Mozilla/5.0"
-            }
+            },
+            timeout: 15000
         });
 
         const $ = cheerio.load(res.data);
 
         const projects = [];
 
-        $("a[href*='/airdrops/']").each((i, el) => {
+        $("a").each((i, el) => {
 
             const name = $(el).text().trim();
             const link = $(el).attr("href");
 
-            if (name && name.length > 3) {
+            if (!name || !link) return;
 
-                projects.push({
-                    name,
-                    link: "https://cryptorank.io" + link,
-                    source: "CryptoRank"
-                });
+            if (!link.includes("/airdrops/")) return;
 
-            }
+            if (name.length < 3) return;
+
+            projects.push({
+                name: name,
+                link: "https://cryptorank.io" + link,
+                source: "CryptoRank"
+            });
 
         });
 
-        console.log("CryptoRank detected:", projects.length);
+        const unique = [];
 
-        return projects;
+        const seen = new Set();
+
+        for (const p of projects) {
+
+            if (!seen.has(p.name)) {
+
+                seen.add(p.name);
+                unique.push(p);
+
+            }
+
+        }
+
+        console.log("CryptoRank detected:", unique.length);
+
+        return unique;
 
     } catch (err) {
 
