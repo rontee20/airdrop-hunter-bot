@@ -14,25 +14,41 @@ async function researchProject(name, link) {
         $("a").each((i, el) => {
 
             const href = $(el).attr("href");
-
             if (!href) return;
 
-            if (href.includes("twitter.com") || href.includes("x.com")) {
+            // -------- FILTER BAD LINKS --------
+            if (
+                href.includes("coingecko") ||
+                href.includes("coinmarketcap") ||
+                href.includes("youtube") ||
+                href.includes("t.me") ||
+                href.includes("discord.gg") ||
+                href.includes("reddit")
+            ) {
+                return;
+            }
+
+            // -------- FIND PROJECT TWITTER --------
+            if (
+                !twitter &&
+                (href.includes("twitter.com/") || href.includes("x.com/"))
+            ) {
                 twitter = href;
             }
 
+            // -------- FIND PROJECT WEBSITE --------
             if (
+                !website &&
                 href.startsWith("http") &&
-                !href.includes("coingecko") &&
-                !href.includes("coinmarketcap") &&
-                !website
+                !href.includes("twitter") &&
+                !href.includes("x.com")
             ) {
                 website = href;
             }
 
         });
 
-        // skip if important info missing
+        // if important info missing → skip project
         if (!twitter || !website) {
             return null;
         }
