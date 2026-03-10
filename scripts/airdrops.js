@@ -11,16 +11,16 @@ async function scanAirdrops(callback) {
 
         const projects = [];
 
-        $(".airdrops-item").each((i, el) => {
+        $(".airdrop-item").each((i, el) => {
 
-            const name = $(el).find(".airdrop-name").text().trim();
+            const name = $(el).find(".airdrop-title").text().trim();
             const link = $(el).find("a").attr("href");
 
             if (name && link) {
 
                 projects.push({
                     name,
-                    link: "https://airdrops.io" + link
+                    link
                 });
 
             }
