@@ -1,46 +1,94 @@
-const axios = require("axios");
-const cheerio = require("cheerio");
+const scanAirdrops = require("./sources/airdrops");
+const scanCryptoRank = require("./sources/cryptorank");
+const scanGalxe = require("./sources/galxe");
+const scanZealy = require("./sources/zealy");
+const scanDefiLlama = require("./sources/defillama");
+const scanGithub = require("./sources/github");
 
-async function scanAirdrops(callback) {
+const researchProject = require("./research");
+const tokenCheck = require("./tokenCheck");
+const scoreProject = require("./scoring");
+const { sendTelegram } = require("./telegram");
 
-    try {
+const posted = new Map();
 
-        const url = "https://airdrops.io/airdrops/";
+async function processProject(project) {
 
-        const res = await axios.get(url);
+    console.log("Checking:", project.name);
 
-        const $ = cheerio.load(res.data);
+    const research = await researchProject(project);
 
-        const projects = [];
+    if (!research) return;
 
-        $(".airdrops-list a").each((i, el) => {
+    const listed = await tokenCheck(project.name);
 
-            const name = $(el).text().trim();
-            const link = $(el).attr("href");
+    if (listed) {
 
-            if (name && link) {
+        console.log("Token already listed:", project.name);
+        return;
 
-                projects.push({
-                    name: name,
-                    link: link.startsWith("http") ? link : "https://airdrops.io" + link
-                });
+    }
 
-            }
+    const score = scoreProject(research);
 
-        });
+    if (score < 6) {
 
-        console.log("Airdrops detected:", projects.length);
+        console.log("Low quality project:", project.name);
+        return;
 
-        callback(projects);
+    }
 
-    } catch (err) {
+    const message = `
+💎 <b>NEW ALPHA PROJECT</b>
 
-        console.log("Airdrops.io scan error:", err.message);
+Project: ${project.name}
 
-        callback([]);
+Rating: ${score}/10
+
+Website:
+${research.website}
+
+Twitter:
+${research.twitter}
+
+Source:
+${project.source}
+
+Tasks:
+• Visit website
+• Follow Twitter
+• Join community
+
+<i>More updates coming if new tasks appear</i>
+`;
+
+    await sendTelegram(message);
+
+    posted.set(project.name, research);
+
+}
+
+async function main() {
+
+    const sources = await Promise.all([
+
+        scanAirdrops(),
+        scanCryptoRank(),
+        scanGalxe(),
+        scanZealy(),
+        scanDefiLlama(),
+        scanGithub()
+
+    ]);
+
+    const projects = sources.flat();
+
+    for (const p of projects) {
+
+        await processProject(p);
 
     }
 
 }
 
-module.exports = scanAirdrops;
+main();
