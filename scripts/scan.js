@@ -7,16 +7,14 @@ const scanCMC = require("./cmc");
 const researchProject = require("./research");
 const { sendTelegram } = require("./telegram");
 
-console.log("🛰️ Global Alpha Scan Started...");
+console.log("🛰️ Alpha Intelligence Scanner Started...");
 
-// prevent duplicate posts in one run
 const posted = new Set();
 
 async function processProject(name) {
 
     if (!name) return;
 
-    // avoid duplicate processing
     const key = name.toLowerCase();
     if (posted.has(key)) return;
 
@@ -26,10 +24,9 @@ async function processProject(name) {
 
         const message = await researchProject(name);
 
-        // if research incomplete → skip
         if (!message) {
 
-            console.log("Skipping (research incomplete):", name);
+            console.log("Skipping:", name);
             return;
 
         }
@@ -48,12 +45,12 @@ async function processProject(name) {
 
 async function main() {
 
-    // 1️⃣ CoinGecko / tracker projects
+    // tracker scan
     scanTrackers(async (projects) => {
 
         if (!Array.isArray(projects)) return;
 
-        for (const p of projects.slice(0, 5)) {
+        for (const p of projects.slice(0,5)) {
 
             await processProject(p.name);
 
@@ -61,7 +58,7 @@ async function main() {
 
     });
 
-    // 2️⃣ Crypto news scanning
+    // news scan
     scanNews(async (newsItems) => {
 
         if (!Array.isArray(newsItems)) return;
@@ -78,7 +75,7 @@ async function main() {
 
     });
 
-    // 3️⃣ Galxe campaigns
+    // galxe scan
     scanGalxe(async (campaigns) => {
 
         if (!Array.isArray(campaigns)) return;
@@ -91,7 +88,7 @@ async function main() {
 
     });
 
-    // 4️⃣ Zealy campaigns
+    // zealy scan
     scanZealy(async (communities) => {
 
         if (!Array.isArray(communities)) return;
@@ -104,7 +101,7 @@ async function main() {
 
     });
 
-    // 5️⃣ CoinMarketCap new listings
+    // cmc scan
     scanCMC(async (coins) => {
 
         if (!Array.isArray(coins)) return;
