@@ -32,43 +32,95 @@ function isDuplicate(title) {
   return false;
 }
 
+const scamKeywords = [
+  "free usdc",
+  "giveaway",
+  "voucher",
+  "bonus",
+  "promo",
+  "claim reward",
+  "referral",
+  "instant withdraw"
+];
+
+const alphaKeywords = [
+  "testnet",
+  "incentivized",
+  "galxe",
+  "zealy",
+  "bridge",
+  "swap",
+  "staking",
+  "node",
+  "campaign"
+];
+
+function isScam(text) {
+  const lower = text.toLowerCase();
+  return scamKeywords.some(word => lower.includes(word));
+}
+
+function isAlpha(text) {
+  const lower = text.toLowerCase();
+  return alphaKeywords.some(word => lower.includes(word));
+}
+
+function extractWebsite(text) {
+
+  const match = text.match(/https?:\/\/[^\s]+/);
+
+  if (!match) return null;
+
+  const url = match[0];
+
+  if (
+    url.includes("t.me") ||
+    url.includes("bit.ly") ||
+    url.includes("ref") ||
+    url.includes("airdrop")
+  ) return null;
+
+  return url;
+}
+
 async function sendTelegram(message) {
 
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
-  try {
-
-    await axios.post(url, {
-      chat_id: CHAT_ID,
-      text: message,
-      parse_mode: "HTML",
-      disable_web_page_preview: false
-    });
-
-  } catch (err) {
-
-    console.log("Telegram send error");
-
-  }
+  await axios.post(url, {
+    chat_id: CHAT_ID,
+    text: message,
+    parse_mode: "HTML",
+    disable_web_page_preview: false
+  });
 
 }
 
-function formatPost(title, link) {
+function formatPost(project, website, source) {
 
-  return `
-🚀 <b>Crypto Alpha Detected</b>
+return `🚀 <b>New Potential Airdrop</b>
+
+<b>Project:</b>
+${project}
+
+🌐 <b>Website</b>
+${website}
+
+🐦 <b>X</b>
+Search project name on X
+
+🪂 <b>Possible Tasks</b>
+• Follow X
+• Join Discord
+• Complete campaign tasks
+• Interact with testnet
+
+⚠️ Always DYOR before interacting.
 
 <b>Source:</b>
-${title}
+${source}
 
-🔗 <b>Link</b>
-${link}
-
-⚡ Early alpha spotted from major channels.
-
-#Crypto #Airdrop #Testnet
-`;
-
+#Crypto #Airdrop #Testnet`;
 }
 
 async function scanTelegramChannels() {
@@ -86,19 +138,23 @@ async function scanTelegramChannels() {
 
         const text = $(el).text().trim();
 
-        if (
-          text.toLowerCase().includes("airdrop") ||
-          text.toLowerCase().includes("testnet") ||
-          text.toLowerCase().includes("campaign") ||
-          text.toLowerCase().includes("reward")
-        ) {
+        if (!text) return;
 
-          results.push({
-            title: text.slice(0,120),
-            link: url
-          });
+        if (isScam(text)) return;
 
-        }
+        if (!isAlpha(text)) return;
+
+        const website = extractWebsite(text);
+
+        if (!website) return;
+
+        const project = text.split(" ")[0].replace("$","");
+
+        results.push({
+          project,
+          website,
+          source: url
+        });
 
       });
 
@@ -111,7 +167,6 @@ async function scanTelegramChannels() {
   }
 
   return results;
-
 }
 
 async function main() {
@@ -122,11 +177,15 @@ async function main() {
 
   for (const post of posts) {
 
-    if (isDuplicate(post.title)) continue;
+    if (isDuplicate(post.project)) continue;
 
-    const message = formatPost(post.title, post.link);
+    const message = formatPost(
+      post.project,
+      post.website,
+      post.source
+    );
 
-    console.log("Posting:", post.title);
+    console.log("Posting:", post.project);
 
     await sendTelegram(message);
 
