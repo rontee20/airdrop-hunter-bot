@@ -3,7 +3,7 @@ name: Airdrop Hunter
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0 * * * *"
+    - cron: "*/30 * * * *"
 
 jobs:
   run-bot:
@@ -11,10 +11,10 @@ jobs:
 
     steps:
       - name: Checkout repo
-      uses: actions/checkout@v4
+        uses: actions/checkout@v4
 
       - name: Setup Node
-      uses: actions/setup-node@v4
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
