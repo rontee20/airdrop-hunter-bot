@@ -9,16 +9,16 @@ export const telegramChannels = [
 ];
 
 export const twitterAccounts = [
-  "@nansen_ai",
-  "@Cointelegraph",
-  "@CryptoRank_io"
-  "@CryptoRank_VCs"
-  "@airdrops_io"
+  "nansen_ai",
+  "Cointelegraph",
+  "CryptoRank_io",
+  "CryptoRank_VCs",
+  "airdrops_io"
 
 ];
 
 export const websites = [
   "https://cryptorank.io/upcoming-ico",
-  "https://cointelegraph.com/rss"
+  "https://cointelegraph.com/rss",
   "https://airdrops.io/"
 ];
