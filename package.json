@@ -2,6 +2,7 @@
   "name": "airdrop-hunter-bot",
   "version": "1.0.0",
   "description": "Crypto alpha scanner",
+  "type": "module",
   "main": "scripts/scan.js",
   "scripts": {
     "start": "node scripts/scan.js"
@@ -9,6 +10,7 @@
   "dependencies": {
     "axios": "^1.6.0",
     "rss-parser": "^3.13.0",
-    "cheerio": "^1.0.0"
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.5"
   }
 }
