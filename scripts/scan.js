@@ -1,5 +1,4 @@
 import { scanAlphaChannels } from "./scanAlphaChannels.js";
-import { scanAlphaChannels } from "./scanAlphaChannels.js";
 import fs from "fs";
 import axios from "axios";
 import dotenv from "dotenv";
