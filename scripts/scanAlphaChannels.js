@@ -1,18 +1,12 @@
 import axios from "axios";
 import * as cheerio from "cheerio";
-
-const channels = [
-  "https://t.me/s/airdrops_io",
-  "https://t.me/s/CryptoRank_io",
-  "https://t.me/s/Cointelegraph",
-  "https://t.me/s/ICOAnalytics"
-];
+import { telegramChannels } from "../config/sources.js";
 
 export async function scanAlphaChannels() {
 
   let results = [];
 
-  for (const url of channels) {
+  for (const url of telegramChannels) {
 
     try {
 
@@ -25,8 +19,7 @@ export async function scanAlphaChannels() {
 
         if (
           text.toLowerCase().includes("airdrop") ||
-          text.toLowerCase().includes("testnet") ||
-          text.toLowerCase().includes("campaign")
+          text.toLowerCase().includes("testnet")
         ) {
 
           results.push({
@@ -40,10 +33,8 @@ export async function scanAlphaChannels() {
 
       });
 
-    } catch (err) {
-
+    } catch {
       console.log("Channel scan error:", url);
-
     }
   }
 
