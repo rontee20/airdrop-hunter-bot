@@ -4,31 +4,38 @@ import fs from "fs";
 import { telegramChannels } from "../config/sources.js";
 
 // ─── ENV VALIDATION ───────────────────────────────────────────────────────────
-const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const BOT_TOKEN   = process.env.TELEGRAM_BOT_TOKEN;
+const CHAT_ID     = process.env.TELEGRAM_CHAT_ID;
+const OPENAI_KEY  = process.env.OPENAI_API_KEY;
+const SERP_KEY    = process.env.SERPAPI_KEY; // optional but recommended
 
-if (!BOT_TOKEN || !CHAT_ID) {
-  console.error("❌ Missing env vars: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID");
+if (!BOT_TOKEN || !CHAT_ID || !OPENAI_KEY) {
+  console.error("❌ Missing env vars: TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID, OPENAI_API_KEY");
   process.exit(1);
 }
 
 // ─── STORAGE ──────────────────────────────────────────────────────────────────
-const postedFile   = "data/posted.json";
-const scamLogFile  = "data/scam_log.json";
+const postedFile  = "data/posted.json";
+const scamLogFile = "data/scam_log.json";
+const cacheFile   = "data/research_cache.json";
 
 if (!fs.existsSync("data")) fs.mkdirSync("data");
 if (!fs.existsSync(postedFile))  fs.writeFileSync(postedFile,  JSON.stringify([]));
 if (!fs.existsSync(scamLogFile)) fs.writeFileSync(scamLogFile, JSON.stringify([]));
+if (!fs.existsSync(cacheFile))   fs.writeFileSync(cacheFile,   JSON.stringify({}));
 
 function getPosted() { return JSON.parse(fs.readFileSync(postedFile)); }
 function savePosted(d) { fs.writeFileSync(postedFile, JSON.stringify(d, null, 2)); }
+function getCache()  { return JSON.parse(fs.readFileSync(cacheFile)); }
+function setCache(key, val) {
+  const c = getCache(); c[key] = val;
+  fs.writeFileSync(cacheFile, JSON.stringify(c, null, 2));
+}
 
 function isDuplicate(title) {
   const posted = getPosted();
   if (posted.includes(title)) return true;
-  posted.push(title);
-  savePosted(posted);
-  return false;
+  posted.push(title); savePosted(posted); return false;
 }
 function logScam(post, reason) {
   const log = JSON.parse(fs.readFileSync(scamLogFile));
@@ -36,288 +43,337 @@ function logScam(post, reason) {
   fs.writeFileSync(scamLogFile, JSON.stringify(log, null, 2));
 }
 
-// ─── SCAM DETECTION ───────────────────────────────────────────────────────────
-const SCAM_SIGNALS = [
-  { pattern: /send\s+\d+.*get\s+\d+/i,                       weight: 100, reason: "Send X get X scam" },
-  { pattern: /send\s+(eth|bnb|sol|usdt|btc)/i,               weight: 100, reason: "Send crypto scam" },
-  { pattern: /double\s+your\s+(eth|bnb|sol|crypto|money)/i,  weight: 100, reason: "Doubling scam" },
-  { pattern: /seed\s+phrase|private\s+key|recovery\s+phrase/i, weight: 100, reason: "Private key/seed phrase request" },
-  { pattern: /approve\s+(transaction|contract)\s+to\s+claim/i, weight: 100, reason: "Approval drain scam" },
-  { pattern: /pay\s+(fee|gas|tax)\s+to\s+(claim|receive|withdraw)/i, weight: 100, reason: "Fee to claim scam" },
-  { pattern: /connect\s+wallet\s+to\s+claim/i,               weight: 90,  reason: "Fake wallet connect" },
-  { pattern: /guaranteed\s+(profit|return|reward|income)/i,  weight: 90,  reason: "Guaranteed profit promise" },
-  { pattern: /elon\s+(musk|tesla).*giveaway/i,               weight: 100, reason: "Fake Elon giveaway" },
-  { pattern: /vitalik.*giveaway/i,                           weight: 100, reason: "Fake Vitalik giveaway" },
-  { pattern: /official\s+giveaway.*send/i,                   weight: 90,  reason: "Fake official giveaway" },
-  { pattern: /\b(etherum|ethreum|ethereun|etherium)\b/i,     weight: 80,  reason: "Ethereum typosquat" },
-  { pattern: /\b(binnance|binanse|binanace)\b/i,             weight: 80,  reason: "Binance typosquat" },
-  { pattern: /unclaimed\s+(tokens?|funds?|airdrop)/i,        weight: 65,  reason: "Fake unclaimed funds" },
-  { pattern: /wallet\s+(eligible|qualified).*click/i,        weight: 65,  reason: "Wallet drain attempt" },
-  { pattern: /dm\s+(me|us)\s+for\s+(details|info|more)/i,    weight: 60,  reason: "Suspicious DM request" },
-  { pattern: /t\.me\/\+[a-zA-Z0-9]+/i,                       weight: 50,  reason: "Private group invite" },
+// ─── SCAM PRE-FILTER (blocks obvious scams before wasting API calls) ──────────
+const HARD_SCAM = [
+  /send\s+\d+.*get\s+\d+/i,
+  /seed\s+phrase|private\s+key|recovery\s+phrase/i,
+  /approve\s+(transaction|contract)\s+to\s+claim/i,
+  /pay\s+(fee|gas|tax)\s+to\s+(claim|receive|withdraw)/i,
+  /double\s+your\s+(eth|bnb|sol|crypto)/i,
+  /elon\s+(musk|tesla).*giveaway/i,
+  /vitalik.*giveaway/i,
+  /\b(etherum|ethreum|binnance|binanse|solona)\b/i,
 ];
 
-const LEGIT_SIGNALS = [
-  { pattern: /github\.com/i,                                   weight: 40 },
-  { pattern: /testnet/i,                                       weight: 30 },
-  { pattern: /\b(whitepaper|litepaper|docs\.)/i,               weight: 35 },
-  { pattern: /\b(discord\.gg|twitter\.com|x\.com)\b/i,        weight: 20 },
-  { pattern: /\b(task|quest|complete|follow|retweet)\b/i,      weight: 25 },
-  { pattern: /\b(mainnet|devnet|layer\s*2|l2|rollup)\b/i,     weight: 30 },
-  { pattern: /\b(retroactive|retroairdrop)\b/i,                weight: 35 },
-  { pattern: /\b(galxe|zealy|layer3|guild\.xyz|crew3)\b/i,    weight: 40 },
-  { pattern: /\b(protocol|defi|bridge|staking|liquidity)\b/i, weight: 20 },
-  { pattern: /\b(audit|audited|certik|chainalysis)\b/i,       weight: 35 },
-  { pattern: /\b(backed by|funded|investors?|vc|sequoia|paradigm|a16z)\b/i, weight: 30 },
-  { pattern: /\$[0-9]+[MBK]\b/i,                              weight: 25 }, // funding amount
-  { pattern: /\bTGE\b/i,                                       weight: 20 },
-  { pattern: /\b(stripe|coinbase|binance labs|polychain)\b/i, weight: 35 },
-];
+function isHardScam(text) {
+  return HARD_SCAM.some(p => p.test(text));
+}
 
-function analyzePost(text) {
-  let scamScore = 0, legitScore = 0, scamReasons = [], legitReasons = [];
+// ─── WEB RESEARCH ─────────────────────────────────────────────────────────────
 
-  for (const s of SCAM_SIGNALS) {
-    if (s.pattern.test(text)) { scamScore += s.weight; scamReasons.push(s.reason); }
-  }
-  for (const s of LEGIT_SIGNALS) {
-    if (s.pattern.test(text)) { legitScore += s.weight; legitReasons.push(s.reason); }
+// Search Google via SerpAPI (free tier: 100/month) or fallback to DuckDuckGo
+async function searchWeb(query) {
+  if (SERP_KEY) {
+    try {
+      const res = await axios.get("https://serpapi.com/search", {
+        params: { q: query, api_key: SERP_KEY, num: 5, engine: "google" },
+        timeout: 8000,
+      });
+      return (res.data.organic_results || [])
+        .slice(0, 5)
+        .map(r => `${r.title}: ${r.snippet}`)
+        .join("\n");
+    } catch { /* fall through */ }
   }
 
-  if (text.length < 80) scamScore += 30;
-  const capsRatio = (text.match(/[A-Z]/g) || []).length / text.length;
-  if (capsRatio > 0.5) scamScore += 25;
-
-  const isScam   = (scamScore - legitScore) > 50 || scamScore >= 100;
-  const confidence = Math.min(100, Math.max(0, Math.round(legitScore / (legitScore + scamScore + 1) * 100)));
-  const riskLevel  = scamScore >= 100 ? "HIGH" : scamScore >= 50 ? "MEDIUM" : "LOW";
-
-  return { verdict: isScam ? "SCAM" : "LEGITIMATE", confidence, scamScore, legitScore, scamReasons, legitReasons, riskLevel };
+  // Free fallback: DuckDuckGo instant answer API
+  try {
+    const res = await axios.get("https://api.duckduckgo.com/", {
+      params: { q: query, format: "json", no_html: 1, skip_disambig: 1 },
+      timeout: 8000,
+    });
+    const d = res.data;
+    const parts = [];
+    if (d.AbstractText) parts.push(d.AbstractText);
+    if (d.RelatedTopics) {
+      d.RelatedTopics.slice(0, 4).forEach(t => t.Text && parts.push(t.Text));
+    }
+    return parts.join("\n") || "";
+  } catch { return ""; }
 }
 
-// ─── POST TYPE DETECTOR ───────────────────────────────────────────────────────
-function detectPostType(text) {
-  const t = text.toLowerCase();
+// Check CoinGecko for token data
+async function checkCoinGecko(projectName) {
+  try {
+    const search = await axios.get(
+      `https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(projectName)}`,
+      { timeout: 6000 }
+    );
+    const coin = search.data.coins?.[0];
+    if (!coin) return null;
 
-  // Full guide post — has funding, team info, step links, rating
-  const hasGuideSignals =
-    (t.includes("funding") || t.includes("backed by") || t.includes("incubated")) &&
-    (t.includes("team") || t.includes("co-founder") || t.includes("ceo")) &&
-    (t.includes("rating") || t.includes("tge") || t.includes("guide"));
-
-  // Quick update — short, has live/claim/link
-  const hasUpdateSignals =
-    text.length < 600 &&
-    (t.includes("live") || t.includes("claim") || t.includes("link :") || t.includes("mint"));
-
-  if (hasGuideSignals) return "GUIDE";
-  if (hasUpdateSignals) return "UPDATE";
-  return "STANDARD";
+    // Get more detail
+    const detail = await axios.get(
+      `https://api.coingecko.com/api/v3/coins/${coin.id}?localization=false&tickers=false&community_data=false&developer_data=false`,
+      { timeout: 6000 }
+    );
+    const d = detail.data;
+    return {
+      name:        d.name,
+      symbol:      d.symbol?.toUpperCase(),
+      market_cap:  d.market_data?.market_cap?.usd
+                     ? `$${(d.market_data.market_cap.usd / 1e6).toFixed(1)}M`
+                     : null,
+      price:       d.market_data?.current_price?.usd
+                     ? `$${d.market_data.current_price.usd}`
+                     : null,
+      website:     d.links?.homepage?.[0] || null,
+      twitter:     d.links?.twitter_screen_name
+                     ? `https://twitter.com/${d.links.twitter_screen_name}`
+                     : null,
+      description: d.description?.en?.slice(0, 200) || null,
+      categories:  d.categories?.slice(0, 3).join(", ") || null,
+      listed:      true,
+    };
+  } catch { return null; }
 }
 
-// ─── EXTRACTORS ───────────────────────────────────────────────────────────────
-function extractLinks(text) {
-  const urlRegex = /https?:\/\/[^\s\)\],]+/g;
-  return [...new Set(text.match(urlRegex) || [])];
+// Scrape project website for basic info
+async function scrapeProjectSite(url) {
+  try {
+    const res = await axios.get(url, {
+      headers: { "User-Agent": "Mozilla/5.0" },
+      timeout: 7000,
+    });
+    const $ = cheerio.load(res.data);
+    const title = $("title").text().trim();
+    const desc  = $('meta[name="description"]').attr("content") || "";
+    const ogDesc = $('meta[property="og:description"]').attr("content") || "";
+    return { title, description: ogDesc || desc };
+  } catch { return null; }
 }
 
-function extractProjectName(text) {
-  // Try "ProjectName Airdrop" or "ProjectName :" pattern
-  const m =
-    text.match(/^[\s\S]*?([A-Z][a-zA-Z0-9]+(?:\s[A-Z][a-zA-Z0-9]+)?)\s+(?:Airdrop|Testnet|Guide|Update|x\s)/m) ||
-    text.match(/\$([A-Z]{2,8})\b/) ||
-    text.match(/([A-Z][a-zA-Z0-9]{2,})\s*:/);
-  return m ? m[1].trim() : "Crypto Project";
+// ─── AI RESEARCHER (OpenAI) ───────────────────────────────────────────────────
+async function aiResearch(rawPost, webData, coinData) {
+  const coinSection = coinData
+    ? `CoinGecko Data: ${JSON.stringify(coinData)}`
+    : "CoinGecko: Not listed yet (new project)";
+
+  const prompt = `You are a professional crypto analyst who writes airdrop guides for a serious Telegram channel with 100k+ followers.
+
+You have been given a raw airdrop post and research data. Your job is to:
+1. Verify if this is a real, legitimate project
+2. Extract all key information
+3. Write a clean, structured Telegram post exactly like the format below
+
+RAW POST:
+"""
+${rawPost}
+"""
+
+RESEARCH DATA:
+${webData ? `Web Search Results:\n${webData}\n` : "Web: No results found\n"}
+${coinSection}
+
+OUTPUT FORMAT (respond ONLY with valid JSON, no markdown):
+{
+  "is_legitimate": true or false,
+  "legitimacy_reason": "one sentence why you think it's real or fake",
+  "confidence": 0-100,
+  "verdict": "VERIFIED" or "UNVERIFIED" or "SCAM",
+  
+  "project_name": "exact project name",
+  "token_symbol": "$TOKEN or null",
+  "category": "Testnet" or "Airdrop" or "NFT" or "DeFi" or "Campaign" or "Claim Live",
+  "category_emoji": "🧪" or "🪂" or "🖼" or "💰" or "📣" or "⚡",
+  
+  "description": "2 sentences about what the project does, in simple English",
+  "funding": "e.g. $50M at $500M FDV or null",
+  "backers": "e.g. Sequoia, Paradigm or null",
+  "incubated_by": "e.g. Stripe or null",
+  "partnerships": "comma separated list or null",
+  
+  "tge": "e.g. Q2 2025 or null",
+  "airdrop_confirmed": true or false,
+  "referral_system": true or false,
+  "rating": "X/10 — one line reason (only give if VERIFIED, else null)",
+  
+  "team": [
+    { "name": "Full Name", "role": "Title" }
+  ],
+  
+  "tasks": [
+    "Step 1 description",
+    "Step 2 description"
+  ],
+  
+  "links": [
+    { "label": "Official Website", "url": "https://..." },
+    { "label": "App / Testnet", "url": "https://..." }
+  ],
+  
+  "risk_note": "one sentence warning if any risk, or null",
+  "post_type": "GUIDE" or "UPDATE" or "ALERT"
 }
 
-function extractCategory(text) {
-  const t = text.toLowerCase();
-  if (t.includes("testnet"))  return { name: "Testnet Guide",  emoji: "🧪" };
-  if (t.includes("nft") || t.includes("mint") || t.includes("sbt")) return { name: "NFT / SBT", emoji: "🖼" };
-  if (t.includes("claim") && t.includes("live")) return { name: "Claim Live", emoji: "⚡" };
-  if (t.includes("defi") || t.includes("swap")) return { name: "DeFi",  emoji: "💰" };
-  if (t.includes("campaign") || t.includes("quest")) return { name: "Campaign", emoji: "📣" };
-  if (t.includes("whitelist") || t.includes("allowlist")) return { name: "Whitelist", emoji: "📋" };
-  return { name: "Airdrop", emoji: "🪂" };
+RULES:
+- If the project asks for private keys, seed phrases, or upfront payment → verdict = SCAM
+- If you cannot find ANY online presence for the project → verdict = UNVERIFIED
+- Only give a rating of 7+ if there is real funding, team, and confirmed airdrop
+- Be concise and factual. Never invent information.`;
+
+  try {
+    const res = await axios.post(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        model: "gpt-4o-mini",
+        temperature: 0.2,
+        max_tokens: 1200,
+        messages: [{ role: "user", content: prompt }],
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${OPENAI_KEY}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 30000,
+      }
+    );
+
+    const raw = res.data.choices[0].message.content.trim();
+    const clean = raw.replace(/```json|```/g, "").trim();
+    return JSON.parse(clean);
+  } catch (err) {
+    console.log("   ⚠️  OpenAI error:", err.message);
+    return null;
+  }
 }
 
-function extractFunding(text) {
-  const m = text.match(/\$[\d,.]+[MBK](?:\s+(?:at|@)\s+\$[\d,.]+[MBK](?:\s+FDV)?)?/i);
-  return m ? m[0] : null;
+// ─── FULL RESEARCH PIPELINE ───────────────────────────────────────────────────
+async function researchProject(rawPost) {
+  // Extract project name for searching
+  const nameMatch =
+    rawPost.match(/([A-Z][a-zA-Z0-9]+(?:\s[A-Z][a-zA-Z0-9]+)?)\s+(?:Airdrop|Testnet|Guide|Protocol|Finance|Network)/i) ||
+    rawPost.match(/\$([A-Z]{2,8})\b/) ||
+    rawPost.match(/([A-Z][a-zA-Z0-9]{3,})\s*:/);
+
+  const projectName = nameMatch ? nameMatch[1].trim() : "";
+  const cacheKey = projectName.toLowerCase().replace(/\s+/g, "_");
+
+  // Use cache to avoid re-researching same project
+  const cache = getCache();
+  if (cache[cacheKey] && Date.now() - cache[cacheKey].timestamp < 3600000) {
+    console.log(`   💾 Using cached research for: ${projectName}`);
+    return cache[cacheKey].data;
+  }
+
+  console.log(`   🔬 Researching: ${projectName || "unknown project"}`);
+
+  // Run research in parallel
+  const [webData, coinData] = await Promise.all([
+    projectName
+      ? searchWeb(`${projectName} crypto airdrop testnet 2024 2025 official`)
+      : Promise.resolve(""),
+    projectName ? checkCoinGecko(projectName) : Promise.resolve(null),
+  ]);
+
+  // Try to scrape official site if CoinGecko has it
+  let siteData = null;
+  if (coinData?.website) {
+    siteData = await scrapeProjectSite(coinData.website);
+  }
+
+  const combinedWeb = [webData, siteData?.description].filter(Boolean).join("\n");
+
+  // AI analysis with all research data
+  const analysis = await aiResearch(rawPost, combinedWeb, coinData);
+
+  if (analysis) {
+    setCache(cacheKey, { data: analysis, timestamp: Date.now() });
+  }
+
+  return analysis;
 }
 
-function extractTGE(text) {
-  const m = text.match(/(?:TGE|tge)[^\n]*?(Q[1-4][\s\-–]*(?:20)?\d{2,4}|[A-Z][a-z]+\s+20\d{2}|\d{4})/i);
-  return m ? m[1].trim() : null;
-}
+// ─── POST FORMATTERS ──────────────────────────────────────────────────────────
+function formatGuidePost(a, source) {
+  const lines = [];
 
-function extractRating(text) {
-  const m = text.match(/[Rr]ating[\s:–-]*([0-9.]+\s*\/\s*10)/);
-  return m ? m[1].trim() : null;
-}
-
-function extractBackers(text) {
-  const m = text.match(/[Bb]acked\s+by\s*:?\s*([^\n]+)/);
-  return m ? m[1].trim() : null;
-}
-
-function extractTeam(text) {
-  const lines = text.split("\n");
-  const teamStart = lines.findIndex(l => /team\s*:/i.test(l));
-  if (teamStart === -1) return [];
-  return lines
-    .slice(teamStart + 1, teamStart + 6)
-    .map(l => l.trim())
-    .filter(l => l.length > 3 && !l.match(/^https?:/));
-}
-
-function extractSteps(text) {
-  const links = extractLinks(text);
-  // numbered steps
-  const numbered = [...text.matchAll(/\d+\.\s+(https?:\/\/[^\s]+)/g)].map(m => m[1]);
-  return numbered.length ? numbered : links;
-}
-
-// ─── FORMATTERS ───────────────────────────────────────────────────────────────
-
-function formatGuidePost(rawText, source) {
-  const projectName = extractProjectName(rawText);
-  const category    = extractCategory(rawText);
-  const funding     = extractFunding(rawText);
-  const tge         = extractTGE(rawText);
-  const rating      = extractRating(rawText);
-  const backers     = extractBackers(rawText);
-  const team        = extractTeam(rawText);
-  const steps       = extractSteps(rawText);
-
-  // Pull description — find sentence with "is a" or "designed for"
-  const descMatch = rawText.match(/[A-Z][^.!?]*(?:is a|designed for|built for|next-gen|Layer)[^.!?]{10,}[.!?]/i);
-  const description = descMatch ? descMatch[0].trim() : "";
-
-  // Pull incubated/partnerships lines
-  const incubated = rawText.match(/[Ii]ncubated\s+by\s+([^\n]+)/)?.[1]?.trim();
-  const partnerships = rawText.match(/[Pp]artnership[s]?\s*:\s*([^\n]+)/)?.[1]?.trim();
-
-  let lines = [];
-
-  lines.push(`${category.emoji} <b>${projectName} : ${category.name}</b>`);
+  lines.push(`${a.category_emoji} <b>${a.project_name} : ${a.category}</b>`);
+  if (a.verdict === "UNVERIFIED") {
+    lines.push(`⚠️ <i>Project not fully verified — proceed with caution</i>`);
+  }
   lines.push(`<i>New users can also join ——</i>\n`);
 
-  if (funding)      lines.push(`💰 <b>Funding :</b> ${funding}`);
-  if (incubated)    lines.push(`🏗 <b>Incubated by</b> ${incubated}`);
-  if (backers)      lines.push(`🤝 <b>Backed by :</b> ${backers}`);
-  if (partnerships) lines.push(`🔗 <b>Partnerships:</b> ${partnerships}\n`);
+  if (a.funding)      lines.push(`💰 <b>Funding :</b> ${a.funding}`);
+  if (a.incubated_by) lines.push(`🏗 <b>Incubated by</b> ${a.incubated_by}`);
+  if (a.backers)      lines.push(`🤝 <b>Backed by :</b> ${a.backers}`);
+  if (a.partnerships) lines.push(`🔗 <b>Partnerships:</b> ${a.partnerships}\n`);
 
-  if (description)  lines.push(`📌 <b>Project</b> - ${description}\n`);
+  if (a.description)  lines.push(`📌 <b>Project</b> - ${a.description}\n`);
 
   lines.push(`👤 <b>Users</b> - No Info`);
-  lines.push(`✅ <b>Airdrop Confirmation</b> - ${rawText.toLowerCase().includes("confirmed") ? "Yes" : "No"}`);
-  lines.push(`👥 <b>Referral System</b> - ${rawText.toLowerCase().includes("referral") ? "Yes" : "No"}`);
-  if (tge)    lines.push(`📅 <b>Expected TGE</b> - ${tge}`);
-  if (rating) lines.push(`⭐ <b>Airdrop Rating</b> - ${rating}\n`);
+  lines.push(`✅ <b>Airdrop Confirmation</b> - ${a.airdrop_confirmed ? "Yes" : "No"}`);
+  lines.push(`👥 <b>Referral System</b> - ${a.referral_system ? "Yes" : "No"}`);
+  if (a.tge)    lines.push(`📅 <b>Expected TGE</b> - ${a.tge}`);
+  if (a.rating) lines.push(`⭐ <b>Airdrop Rating</b> - ${a.rating}\n`);
 
-  if (team.length) {
+  if (a.team?.length) {
     lines.push(`👨‍💻 <b>Team :</b>`);
-    team.forEach(t => lines.push(`  • ${t}`));
+    a.team.forEach(m => lines.push(`  ${m.name} : ${m.role}`));
     lines.push("");
   }
 
-  if (steps.length) {
-    lines.push(`📋 <b>All the Links</b>`);
-    steps.forEach((link, i) => lines.push(`${i + 1}. ${link}`));
+  if (a.tasks?.length) {
+    lines.push(`📋 <b>Steps</b>`);
+    a.tasks.forEach((t, i) => lines.push(`${i + 1}. ${t}`));
+    lines.push("");
   }
 
-  lines.push(`\n━━━━━━━━━━━━━━━`);
-  lines.push(`🤖 <i>AirdropHunter Bot</i>`);
+  if (a.links?.length) {
+    lines.push(`🌐 <b>All the Links</b>`);
+    a.links.forEach((l, i) => lines.push(`${i + 1}. <a href="${l.url}">${l.label}</a>`));
+  }
+
+  if (a.risk_note) lines.push(`\n⚠️ <i>${a.risk_note}</i>`);
+
+  lines.push(`\n━━━━━━━━━━━━━━━━━━━━`);
+  lines.push(`🤖 <i>AirdropHunter Bot | ${a.verdict === "VERIFIED" ? "✅ Verified" : "⚠️ Unverified"}</i>`);
 
   return lines.join("\n");
 }
 
-function formatUpdatePost(rawText, source) {
-  const projectName = extractProjectName(rawText);
-  const category    = extractCategory(rawText);
-  const links       = extractLinks(rawText);
+function formatUpdatePost(a, source) {
+  const lines = [];
 
-  // Try to find a clean link label
-  const linkLine = rawText.match(/[Ll]ink\s*:\s*(https?:\/\/\S+)/);
-  const mainLink = linkLine ? linkLine[1] : links[0] || "";
+  lines.push(`${a.category_emoji} <b>${a.project_name}</b> — ${a.category}`);
+  if (a.verdict === "UNVERIFIED") lines.push(`⚠️ <i>Not fully verified</i>`);
+  lines.push("");
 
-  // Pull all non-link, non-empty lines as body
-  const bodyLines = rawText
-    .split("\n")
-    .map(l => l.trim())
-    .filter(l => l && !l.match(/^https?:\/\//) && !l.match(/^[Ll]ink\s*:/));
+  if (a.description) lines.push(`${a.description}\n`);
 
-  // Remove the first line (usually the title we extracted)
-  const title = bodyLines[0] || `${projectName} Update`;
-  const body  = bodyLines.slice(1).join("\n").trim();
-
-  let lines = [];
-
-  lines.push(`${category.emoji} <b>${title}</b>\n`);
-
-  if (mainLink) lines.push(`🔗 <b>Link :</b> ${mainLink}\n`);
-
-  if (body) lines.push(body);
-
-  if (links.length > 1) {
-    lines.push("\n<b>More Links:</b>");
-    links.slice(1).forEach(l => lines.push(`• ${l}`));
+  if (a.tasks?.length) {
+    a.tasks.forEach(t => lines.push(`• ${t}`));
+    lines.push("");
   }
 
-  lines.push(`\n━━━━━━━━━━━━━━━`);
-  lines.push(`🤖 <i>AirdropHunter Bot</i>`);
+  if (a.links?.length) {
+    lines.push(`🔗 <b>Link :</b> <a href="${a.links[0].url}">${a.links[0].url}</a>`);
+    a.links.slice(1).forEach(l => lines.push(`• <a href="${l.url}">${l.label}</a>`));
+  }
+
+  if (a.risk_note) lines.push(`\n⚠️ <i>${a.risk_note}</i>`);
+
+  lines.push(`\n━━━━━━━━━━━━━━━━━━━━`);
+  lines.push(`🤖 <i>AirdropHunter Bot | ${a.verdict === "VERIFIED" ? "✅ Verified" : "⚠️ Unverified"}</i>`);
 
   return lines.join("\n");
 }
 
-function formatStandardPost(rawText, source) {
-  const projectName = extractProjectName(rawText);
-  const category    = extractCategory(rawText);
-  const links       = extractLinks(rawText);
-  const tge         = extractTGE(rawText);
-  const funding     = extractFunding(rawText);
-
-  let lines = [];
-
-  lines.push(`${category.emoji} <b>${projectName}</b> — ${category.name}\n`);
-  lines.push(rawText.slice(0, 280));
-
-  if (funding)    lines.push(`\n💰 <b>Funding:</b> ${funding}`);
-  if (tge)        lines.push(`📅 <b>Expected TGE:</b> ${tge}`);
-
-  if (links.length) {
-    lines.push("\n🔗 <b>Links:</b>");
-    links.slice(0, 5).forEach((l, i) => lines.push(`${i + 1}. ${l}`));
-  }
-
-  lines.push(`\n━━━━━━━━━━━━━━━`);
-  lines.push(`🤖 <i>AirdropHunter Bot</i>`);
-
-  return lines.join("\n");
-}
-
-function formatPost(post) {
-  const type = detectPostType(post.title);
-  console.log(`   📄 Post type detected: ${type}`);
-  if (type === "GUIDE")  return formatGuidePost(post.title, post.source);
-  if (type === "UPDATE") return formatUpdatePost(post.title, post.source);
-  return formatStandardPost(post.title, post.source);
+function buildTelegramMessage(analysis, source) {
+  if (!analysis) return null;
+  if (analysis.post_type === "UPDATE") return formatUpdatePost(analysis, source);
+  return formatGuidePost(analysis, source);
 }
 
 // ─── TELEGRAM SENDER ──────────────────────────────────────────────────────────
 async function sendTelegram(text) {
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
   try {
-    await axios.post(url, {
-      chat_id: CHAT_ID,
-      text,
-      parse_mode: "HTML",
-      disable_web_page_preview: false,
-    });
+    await axios.post(url, { chat_id: CHAT_ID, text, parse_mode: "HTML", disable_web_page_preview: false });
     console.log("   ✅ Sent to Telegram");
   } catch (err) {
-    console.log("   ❌ Telegram error:", err.response?.data || err.message);
+    console.log("   ❌ Telegram error:", err.response?.data?.description || err.message);
   }
 }
 
@@ -335,16 +391,16 @@ async function scanTelegramChannels() {
       const $ = cheerio.load(res.data);
       $(".tgme_widget_message_text").each((i, el) => {
         const text = $(el).text().trim();
-        if (!text || text.length < 30) return;
+        if (!text || text.length < 40) return;
         const lower = text.toLowerCase();
         if (
-          lower.includes("airdrop") || lower.includes("testnet")  ||
+          lower.includes("airdrop") || lower.includes("testnet") ||
           lower.includes("campaign") || lower.includes("whitelist") ||
-          lower.includes("free mint") || lower.includes("early access") ||
-          lower.includes("retroactive") || lower.includes("claim") ||
-          lower.includes("tge")
+          lower.includes("early access") || lower.includes("retroactive") ||
+          lower.includes("claim") || lower.includes("tge") ||
+          lower.includes("free mint") || lower.includes("sbt")
         ) {
-          results.push({ title: text.slice(0, 1500), source: webUrl });
+          results.push({ title: text.slice(0, 2000), source: webUrl });
         }
       });
     } catch (err) {
@@ -357,7 +413,7 @@ async function scanTelegramChannels() {
 
 // ─── MAIN ─────────────────────────────────────────────────────────────────────
 async function main() {
-  console.log("🚀 AirdropHunter Bot starting...\n");
+  console.log("🚀 AirdropHunter Bot — AI Research Mode\n");
 
   const posts = await scanTelegramChannels();
   if (posts.length === 0) { console.log("😴 No posts found."); return; }
@@ -367,28 +423,44 @@ async function main() {
   for (const post of posts) {
     if (isDuplicate(post.title)) { console.log("⏭  Duplicate, skipping."); continue; }
 
-    const analysis = analyzePost(post.title);
-    console.log(`🧠 "${post.title.slice(0, 60)}..."`);
-    console.log(`   → ${analysis.verdict} | Risk: ${analysis.riskLevel} | Trust: ${analysis.confidence}/100`);
-
-    if (analysis.verdict === "SCAM" || analysis.riskLevel === "HIGH") {
-      logScam(post, analysis.scamReasons.join(", "));
-      console.log(`   🚫 Blocked: ${analysis.scamReasons[0]}`);
-      skipped++; continue;
-    }
-    if (analysis.riskLevel === "MEDIUM" && analysis.legitScore < 20) {
-      logScam(post, "Medium risk, no legit signals");
-      console.log(`   ⚠️  Skipped: Medium risk, no legit signals`);
+    // Step 1: Hard scam pre-filter
+    if (isHardScam(post.title)) {
+      logScam(post, "Hard scam pattern matched");
+      console.log(`🚫 Hard scam blocked immediately.\n`);
       skipped++; continue;
     }
 
-    const message = formatPost(post);
+    console.log(`\n📝 Processing: "${post.title.slice(0, 70)}..."`);
+
+    // Step 2: Full AI research
+    const analysis = await researchProject(post.title);
+
+    if (!analysis) {
+      console.log("   ⚠️  Research failed, skipping.");
+      skipped++; continue;
+    }
+
+    console.log(`   → Verdict: ${analysis.verdict} | Confidence: ${analysis.confidence}% | Type: ${analysis.post_type}`);
+
+    // Step 3: Block confirmed scams
+    if (analysis.verdict === "SCAM") {
+      logScam(post, analysis.legitimacy_reason);
+      console.log(`   🚫 AI flagged as SCAM: ${analysis.legitimacy_reason}`);
+      skipped++; continue;
+    }
+
+    // Step 4: Format and send (UNVERIFIED posts go through with warning label)
+    const message = buildTelegramMessage(analysis, post.source);
+    if (!message) { skipped++; continue; }
+
     await sendTelegram(message);
     sent++;
-    await new Promise(r => setTimeout(r, 2000));
+
+    // Respect Telegram rate limit
+    await new Promise(r => setTimeout(r, 3000));
   }
 
-  console.log(`\n✅ Done — Sent: ${sent} | Blocked: ${skipped}`);
+  console.log(`\n✅ Done — Sent: ${sent} | Blocked/Skipped: ${skipped}`);
 }
 
 main();
