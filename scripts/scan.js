@@ -1,9 +1,8 @@
-import { scanAlphaChannels } from "./scanAlphaChannels.js";
-import fs from "fs";
 import axios from "axios";
-import dotenv from "dotenv";
+import * as cheerio from "cheerio";
+import fs from "fs";
 
-dotenv.config();
+import { telegramChannels } from "../config/sources.js";
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -18,167 +17,121 @@ function getPosted() {
   return JSON.parse(fs.readFileSync(postedFile));
 }
 
-function savePosted(list) {
-  fs.writeFileSync(postedFile, JSON.stringify(list, null, 2));
+function savePosted(data) {
+  fs.writeFileSync(postedFile, JSON.stringify(data, null, 2));
 }
 
-function isDuplicate(name) {
+function isDuplicate(title) {
   const posted = getPosted();
-  return posted.includes(name);
-}
 
-function addPosted(name) {
-  const posted = getPosted();
-  posted.push(name);
+  if (posted.includes(title)) return true;
+
+  posted.push(title);
   savePosted(posted);
+
+  return false;
 }
 
-function isValidProject(p) {
-  if (!p.name) return false;
-  if (!p.website) return false;
-  if (!p.twitter) return false;
-
-  if (p.token === true) return false;
-
-  const tasks = (p.tasks || "").toLowerCase();
-
-  const allowed = [
-    "follow",
-    "discord",
-    "bridge",
-    "swap",
-    "stake",
-    "galxe",
-    "testnet"
-  ];
-
-  return allowed.some(t => tasks.includes(t));
-}
-
-async function sendTelegram(text) {
+async function sendTelegram(message) {
 
   const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
-  await axios.post(url, {
-    chat_id: CHAT_ID,
-    text: text,
-    parse_mode: "HTML",
-    disable_web_page_preview: false
-  });
+  try {
+
+    await axios.post(url, {
+      chat_id: CHAT_ID,
+      text: message,
+      parse_mode: "HTML",
+      disable_web_page_preview: false
+    });
+
+  } catch (err) {
+
+    console.log("Telegram send error");
+
+  }
+
 }
 
-function formatPost(p) {
+function formatPost(title, link) {
 
   return `
-🚀 <b>New Potential Airdrop</b>
+🚀 <b>Crypto Alpha Detected</b>
 
-<b>Project:</b> ${p.name}
+<b>Source:</b>
+${title}
 
-🌐 <b>Website</b>
-${p.website}
+🔗 <b>Link</b>
+${link}
 
-🐦 <b>X</b>
-${p.twitter}
+⚡ Early alpha spotted from major channels.
 
-🪂 <b>Possible Tasks</b>
-• Follow X
-• Join Discord
-• Bridge testnet
-• Complete campaign quests
-
-⚡ Early interaction recommended
+#Crypto #Airdrop #Testnet
 `;
+
 }
 
-async function scanCryptoRank() {
+async function scanTelegramChannels() {
 
-  try {
+  let results = [];
 
-    const url = "https://api.cryptorank.io/v1/airdrops";
+  for (const url of telegramChannels) {
 
-    const res = await axios.get(url);
+    try {
 
-    const data = res.data?.data || [];
+      const res = await axios.get(url);
+      const $ = cheerio.load(res.data);
 
-    return data.map(p => ({
-      name: p.name,
-      website: p.website || "",
-      twitter: p.twitter || "",
-      tasks: "follow discord galxe testnet",
-      token: false
-    }));
+      $(".tgme_widget_message_text").each((i, el) => {
 
-  } catch {
+        const text = $(el).text().trim();
 
-    return [];
+        if (
+          text.toLowerCase().includes("airdrop") ||
+          text.toLowerCase().includes("testnet") ||
+          text.toLowerCase().includes("campaign") ||
+          text.toLowerCase().includes("reward")
+        ) {
+
+          results.push({
+            title: text.slice(0,120),
+            link: url
+          });
+
+        }
+
+      });
+
+    } catch {
+
+      console.log("Channel scan error:", url);
+
+    }
+
   }
-}
 
-async function scanAirdrops() {
+  return results;
 
-  try {
-
-    const url = "https://airdrops.io/feed/";
-
-    const res = await axios.get(url);
-
-    return [];
-
-  } catch {
-
-    return [];
-  }
-}
-
-async function scanNews() {
-
-  try {
-
-    const url = "https://api.coingecko.com/api/v3/search/trending";
-
-    const res = await axios.get(url);
-
-    const coins = res.data?.coins || [];
-
-    return coins.map(c => ({
-      name: c.item.name,
-      website: `https://www.coingecko.com/en/coins/${c.item.id}`,
-      twitter: "",
-      tasks: "follow discord",
-      token: false
-    }));
-
-  } catch {
-
-    return [];
-  }
 }
 
 async function main() {
 
-  const sources = await Promise.all([
-  scanCryptoRank(),
-  scanAirdrops(),
-  scanNews(),
-  scanAlphaChannels()
-]);
+  console.log("Scanning alpha sources...");
 
-  const projects = sources.flat();
+  const posts = await scanTelegramChannels();
 
-  for (const p of projects) {
+  for (const post of posts) {
 
-    if (!isValidProject(p)) continue;
+    if (isDuplicate(post.title)) continue;
 
-    if (isDuplicate(p.name)) continue;
+    const message = formatPost(post.title, post.link);
 
-    const post = formatPost(p);
+    console.log("Posting:", post.title);
 
-    await sendTelegram(post);
+    await sendTelegram(message);
 
-    addPosted(p.name);
-
-    console.log("Posted:", p.name);
   }
+
 }
 
 main();
