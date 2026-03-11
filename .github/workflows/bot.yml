@@ -3,7 +3,7 @@ name: Airdrop Hunter
 on:
   workflow_dispatch:
   schedule:
-    - cron: "0/15 * * * *"
+    - cron: "0/3 * * * *"
 
 jobs:
   run-bot:
