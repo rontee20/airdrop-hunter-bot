@@ -1,3 +1,4 @@
+import { scanAlphaChannels } from "./scanAlphaChannels.js";
 import fs from "fs";
 import axios from "axios";
 import dotenv from "dotenv";
@@ -156,10 +157,11 @@ async function scanNews() {
 async function main() {
 
   const sources = await Promise.all([
-    scanCryptoRank(),
-    scanAirdrops(),
-    scanNews()
-  ]);
+  scanCryptoRank(),
+  scanAirdrops(),
+  scanNews(),
+  scanAlphaChannels()
+]);
 
   const projects = sources.flat();
 
