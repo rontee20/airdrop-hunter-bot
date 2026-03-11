@@ -1,177 +1,182 @@
-const scanAirdrops = require("./sources/airdrops");
-const scanCryptoRank = require("./sources/cryptorank");
-const scanDefiLlama = require("./sources/defillama");
-const scanGalxe = require("./sources/galxe");
-const scanZealy = require("./sources/zealy");
-const scanTwitter = require("./sources/twitter");
+import fs from "fs";
+import axios from "axios";
+import dotenv from "dotenv";
 
-const researchProject = require("./research");
-const tokenCheck = require("./tokenCheck");
-const scoreProject = require("./scoring");
-const { sendTelegram } = require("./telegram");
+dotenv.config();
 
-const blacklist = require("../data/blacklist.json");
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
+const CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-const fs = require("fs");
+const postedFile = "data/posted.json";
 
-console.log("🛰️ Alpha scanner started");
-
-let posted = [];
-let updates = {};
-
-try {
-    posted = JSON.parse(fs.readFileSync("data/projects.json"));
-} catch {
-    posted = [];
+if (!fs.existsSync(postedFile)) {
+  fs.writeFileSync(postedFile, JSON.stringify([]));
 }
 
-try {
-    updates = JSON.parse(fs.readFileSync("data/projectUpdates.json"));
-} catch {
-    updates = {};
+function getPosted() {
+  return JSON.parse(fs.readFileSync(postedFile));
 }
 
-async function processProject(project) {
-
-    if (!project || !project.name) return;
-
-    console.log("Checking:", project.name);
-
-    // blacklist filter
-    if (blacklist.includes(project.name)) {
-
-        console.log("Blacklisted:", project.name);
-        return;
-
-    }
-
-    // duplicate filter (strong)
-const key = project.name.toLowerCase();
-
-if (posted.includes(key)) {
-
-    console.log("Duplicate project skipped:", project.name);
-    return;
-
+function savePosted(list) {
+  fs.writeFileSync(postedFile, JSON.stringify(list, null, 2));
 }
 
-    const research = await researchProject(project);
+function isDuplicate(name) {
+  const posted = getPosted();
+  return posted.includes(name);
+}
 
-    if (!research) return;
+function addPosted(name) {
+  const posted = getPosted();
+  posted.push(name);
+  savePosted(posted);
+}
 
-    // token listing check
-    const listed = await tokenCheck(project.name);
+function isValidProject(p) {
+  if (!p.name) return false;
+  if (!p.website) return false;
+  if (!p.twitter) return false;
 
-    if (listed) {
+  if (p.token === true) return false;
 
-        console.log("Token listed:", project.name);
-        return;
+  const tasks = (p.tasks || "").toLowerCase();
 
-    }
+  const allowed = [
+    "follow",
+    "discord",
+    "bridge",
+    "swap",
+    "stake",
+    "galxe",
+    "testnet"
+  ];
 
-    // scoring filter
-    const score = scoreProject(research);
+  return allowed.some(t => tasks.includes(t));
+}
 
-    if (score < 6) {
+async function sendTelegram(text) {
 
-        console.log("Low score:", project.name);
-        return;
+  const url = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
 
-    }
+  await axios.post(url, {
+    chat_id: CHAT_ID,
+    text: text,
+    parse_mode: "HTML",
+    disable_web_page_preview: false
+  });
+}
 
-    const previous = updates[project.name];
+function formatPost(p) {
 
-    let message = "";
+  return `
+🚀 <b>New Potential Airdrop</b>
 
-    if (previous) {
-
-        message = `
-⚡ <b>UPDATE DETECTED</b>
-
-💎 <b>${research.name}</b>
-
-New campaign or tasks detected.
-
-🌐 Website
-${research.website || "N/A"}
-
-🐦 X (Twitter)
-${research.twitter || "N/A"}
-
-🚀 <b>Action Plan</b>
-${research.tasks.map(t => "• " + t).join("\n")}
-
-<i>Stay active for possible retroactive rewards.</i>
-`;
-
-    } else {
-
-        message = `
-💎 <b>NEW AIRDROP ALPHA</b>
-
-┌────────────────────────
-<b>${research.name}</b>
-└────────────────────────
+<b>Project:</b> ${p.name}
 
 🌐 <b>Website</b>
-${research.website || "N/A"}
+${p.website}
 
-🐦 <b>X (Twitter)</b>
-${research.twitter || "N/A"}
+🐦 <b>X</b>
+${p.twitter}
 
-📡 <b>Source</b>
-${project.source}
+🪂 <b>Possible Tasks</b>
+• Follow X
+• Join Discord
+• Bridge testnet
+• Complete campaign quests
 
-⭐ <b>Airdrop Score</b>
-${score}/10
-
-🚀 <b>Action Plan</b>
-${research.tasks.map(t => "• " + t).join("\n")}
-
-⚠️ <i>Token not listed yet — early participation recommended.</i>
+⚡ Early interaction recommended
 `;
+}
 
-    }
+async function scanCryptoRank() {
 
-    await sendTelegram(message);
+  try {
 
-    posted.push(project.name);
+    const url = "https://api.cryptorank.io/v1/airdrops";
 
-    updates[project.name] = project;
+    const res = await axios.get(url);
 
-    fs.writeFileSync(
-        "data/projects.json",
-        JSON.stringify(posted, null, 2)
-    );
+    const data = res.data?.data || [];
 
-    fs.writeFileSync(
-        "data/projectUpdates.json",
-        JSON.stringify(updates, null, 2)
-    );
+    return data.map(p => ({
+      name: p.name,
+      website: p.website || "",
+      twitter: p.twitter || "",
+      tasks: "follow discord galxe testnet",
+      token: false
+    }));
 
+  } catch {
+
+    return [];
+  }
+}
+
+async function scanAirdrops() {
+
+  try {
+
+    const url = "https://airdrops.io/feed/";
+
+    const res = await axios.get(url);
+
+    return [];
+
+  } catch {
+
+    return [];
+  }
+}
+
+async function scanNews() {
+
+  try {
+
+    const url = "https://api.coingecko.com/api/v3/search/trending";
+
+    const res = await axios.get(url);
+
+    const coins = res.data?.coins || [];
+
+    return coins.map(c => ({
+      name: c.item.name,
+      website: `https://www.coingecko.com/en/coins/${c.item.id}`,
+      twitter: "",
+      tasks: "follow discord",
+      token: false
+    }));
+
+  } catch {
+
+    return [];
+  }
 }
 
 async function main() {
 
-    const sources = await Promise.all([
-        scanAirdrops().catch(() => []),
-        scanCryptoRank().catch(() => []),
-        scanDefiLlama().catch(() => []),
-        scanGalxe().catch(() => []),
-        scanZealy().catch(() => []),
-        scanTwitter().catch(() => [])
-    ]);
+  const sources = await Promise.all([
+    scanCryptoRank(),
+    scanAirdrops(),
+    scanNews()
+  ]);
 
-    const projects = sources.flat();
+  const projects = sources.flat();
 
-    console.log("Projects detected:", projects.length);
+  for (const p of projects) {
 
-    for (const p of projects.slice(0, 30)) {
+    if (!isValidProject(p)) continue;
 
-        await processProject(p);
+    if (isDuplicate(p.name)) continue;
 
-    }
+    const post = formatPost(p);
 
+    await sendTelegram(post);
+
+    addPosted(p.name);
+
+    console.log("Posted:", p.name);
+  }
 }
 
 main();
