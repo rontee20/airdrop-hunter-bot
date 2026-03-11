@@ -1,6 +1,5 @@
-import Parser from "rss-parser";
-
-const parser = new Parser();
+import axios from "axios";
+import cheerio from "cheerio";
 
 const channels = [
   "https://t.me/s/airdrops_io",
@@ -17,21 +16,34 @@ export async function scanAlphaChannels() {
 
     try {
 
-      const feed = await parser.parseURL(url);
+      const res = await axios.get(url);
+      const $ = cheerio.load(res.data);
 
-      for (const item of feed.items.slice(0,5)) {
+      $(".tgme_widget_message_text").each((i, el) => {
 
-        results.push({
-          name: item.title,
-          website: item.link,
-          twitter: "",
-          tasks: "follow discord testnet"
-        });
+        const text = $(el).text();
 
-      }
+        if (
+          text.toLowerCase().includes("airdrop") ||
+          text.toLowerCase().includes("testnet") ||
+          text.toLowerCase().includes("campaign")
+        ) {
+
+          results.push({
+            name: text.slice(0,80),
+            website: url,
+            twitter: "",
+            tasks: "follow discord testnet"
+          });
+
+        }
+
+      });
 
     } catch (err) {
+
       console.log("Channel scan error:", url);
+
     }
   }
 
